@@ -12,3 +12,5 @@ packaging/*/fcitx5-hangul/
 
 # fcitx5-hangul CMake build directory
 vendor/fcitx5-hangul/build/
+/tests/test_matrix_bin
+/tests/test_matrix_system

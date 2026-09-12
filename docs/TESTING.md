@@ -88,14 +88,94 @@ the gotcha above) that:
   exactly, confirming the *packaged* binary (not just the build
   directory) behaves correctly.
 
+## Level 4 — end-to-end through a real fcitx5 `Instance`
+
+`vendor/fcitx5-hangul/test/testhangulsunarae.cpp` builds a full
+`fcitx::Instance` (the same one used by fcitx5-hangul's own upstream
+test), registers the `hangul` input method, selects
+`Keyboard=Dubeolsik Sun-arae` via `RawConfig` — the exact mechanism a
+real `~/.config/fcitx5/conf/hangul.conf` uses — and drives key events
+through `testfrontend`, asserting the five worked examples commit
+correctly. Runs via `ctest` in `vendor/fcitx5-hangul/build`, and again
+automatically as the `check()` step of
+`packaging/fcitx5-hangul/PKGBUILD`. Passing.
+
+## Level 5 — installed system-wide, real desktop session (2026-09-12)
+
+Both patched packages installed (`libhangul 0.2.0-100`,
+`fcitx5-hangul 5.1.11-100`), `Keyboard=Dubeolsik Sun-arae` set in the
+live `~/.config/fcitx5/conf/hangul.conf`, fcitx5 restarted. Typing
+`emmt` (no Shift) into a real text field produced 뜻 — confirmed by the
+user directly.
+
+**Debugging note:** the first restart attempt (`fcitx5 -r &` run
+manually) looked like it silently reverted the config back to
+`# Keyboard=Dubeolsik` (commented out). Root cause turned out to be
+unrelated to the patches: this machine's `omarchy-fcitx5.service`
+(systemd user unit) and D-Bus service activation
+(`/usr/share/dbus-1/services/org.fcitx.Fcitx5.service`) both try to
+own the `org.fcitx.Fcitx5` bus name. Running `fcitx5 -r &` by hand
+raced with the systemd unit; the loser crash-loops
+(`Failed to create addon: dbus ... Is there another fcitx already
+running?`), and whichever instance actually holds the config in memory
+periodically calls `updateAction()` → `safeSaveAsIni()` (see
+`fcitx5-hangul/src/engine.cpp`), which writes its **current in-memory
+config** back to disk on every input-method activation — so an
+instance that started before the file was edited will happily
+overwrite a good edit with its own stale default. Fixed by `pkill -9
+fcitx5` then `systemctl --user restart omarchy-fcitx5.service` to get
+exactly one instance, re-applying the config, and testing before any
+other activation could re-save a stale value. See
+`docs/NEXT-STEPS.md` for the (separate, pre-existing) systemd/D-Bus
+race itself.
+
+## Level 6 — exhaustive combination matrix (`tests/test_matrix.c`)
+
+Prompted by the request to verify as many combinations as possible.
+Rather than hand-typing expected Hangul glyphs (error-prone — see the
+transcription mistakes caught and fixed earlier in this log), this
+harness cross-validates: for every Sun-arae no-Shift key sequence, it
+also types the *same target syllable* via the ordinary Shift-based
+standard `"2"` keyboard, and asserts the two outputs are byte-for-byte
+identical. The standard keyboard's Shift-based composition is
+separate, pre-existing, unmodified code, so a match is real evidence
+of correctness, not a self-fulfilling comparison against the same
+logic being tested.
+
+**62/62 checks pass**, run against both the dev build
+(`vendor/libhangul`) and the installed system `libhangul`. Coverage:
+
+| Group | Count | What it checks |
+|---|---|---|
+| Rule 2.1, simple vowel | 10 | All 5 tense consonants (ㄲㄸㅃㅆㅉ) × 2 vowels (ㅏ, ㅓ) |
+| Rule 2.1 + batchim | 5 | Tense consonant syllable followed by a plain batchim |
+| Rule 2.1, diphthong doubling | 4 | Doubling the *first* vowel of a diphthong (ㅘ/ㅝ/ㅟ-forming) still tenses the consonant |
+| Rule 2.2 | 4 | ㅑ+ㅣ=ㅒ, ㅕ+ㅣ=ㅖ, incl. with a following consonant/choseong and batchim |
+| Rule 2.3 | 4 | Doubled batchim key → ㄲ/ㅆ batchim, in different syllables |
+| Rule 2.4 | 4 | All four ways to type 깎 (shift/shift, tensify/shift, shift/tensify, tensify/tensify) are identical |
+| Diphthong regression | 7 | ㅘㅙㅚㅝㅞㅟㅢ still compose exactly as on standard dubeolsik |
+| Compound batchim regression | 10 | ㄳㄵㄶㄺㄻㄽㄾㄿㅀㅄ still compose exactly as on standard dubeolsik |
+| Non-tensable consonant regression | 9 | ㄴㄹㅁㅇㅎㅋㅌㅍㅊ (no tense form) doubling a vowel behaves *identically* to standard dubeolsik — proves the new tensify check doesn't change anything when it doesn't apply |
+| Broader words | 5 | 꽃, 떨다, 싸다, 짰다, 깩 — multi-syllable, mixing rules |
+
+Run it:
+
+```sh
+gcc tests/test_matrix.c $(pkg-config --cflags --libs libhangul) -o /path/under/HOME/test_matrix
+/path/under/HOME/test_matrix
+```
+
+(or link against `vendor/libhangul/hangul/.libs` instead of the
+system's `pkg-config` output, to test a not-yet-installed build —
+same `/tmp` gotcha from Level 2 applies.)
+
 ## Not yet tested
 
-- **Through fcitx5 itself** — blocked on the `fcitx5-hangul` patch
-  (see `docs/NEXT-STEPS.md`); the new keyboard isn't reachable from
-  fcitx5's config yet.
-- **Installed system-wide** — the package hasn't been installed via
-  `pacman -U` yet; see `docs/NEXT-STEPS.md` for why (needs explicit
-  user confirmation since it replaces a system library).
-- Real keyboard/IME behavior under Hyprland (key repeat interacting
-  with the double-keystroke rules, IME candidate window, etc.) —
-  can only be checked once the above two are done.
+- Real keyboard *hardware* behavior under Hyprland — key repeat (a
+  physically held-down key auto-repeating) interacting with the
+  double-keystroke rules, IME candidate window interaction, and other
+  input methods/apps (browser, terminal, GTK/Qt text fields) beyond
+  the one field already checked in Level 5.
+- The Windows "24-key correspondence" alternate forms of rule 2.1
+  (doubling the *second* half of a diphthong, or dropping ㅐ/ㅔ
+  entirely) — known, documented non-goal; see `docs/ALGORITHM.md`.
