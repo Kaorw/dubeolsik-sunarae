@@ -112,6 +112,15 @@ int main() {
      * extends it to wae/we, same spirit as ya+i/yeo+i above. */
     check("ieung + o+a+i = wae (왜)", "dhkl", "dho");
     check("ieung + u+eo+i = we (웨)", "dnjl", "dnp");
+    /* The page also separately describes a "24-key correspondence"
+     * (Windows-only) variant where a+i=ae and eo+i=e directly, so the
+     * dedicated ae/e keys aren't needed at all. Not a full 24-key
+     * remap here, but the two combinations are harmless additions on
+     * top of the existing ae/e keys (both still work independently). */
+    check("a+i = ae (애)",            "kl",  "o");
+    check("eo+i = e (에)",            "jl",  "p");
+    check("ieung + a+i = ae (애)",    "dkl", "do");
+    check("ieung + eo+i = e (에)",    "djl", "dp");
 
     printf("\n=== Rule 2.3: doubled JONGSEONG key tenses the batchim ===\n");
     check("bieup+a+batchim gg (밖)", "qkrr", "qkR");

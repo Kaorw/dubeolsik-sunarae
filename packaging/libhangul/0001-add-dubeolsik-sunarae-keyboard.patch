@@ -258,10 +258,10 @@ index 4e2c277..5c5d0df 100644
      &hangul_keyboard_390,
      &hangul_keyboard_3final,
 diff --git i/hangul/hangulkeyboard.h w/hangul/hangulkeyboard.h
-index 1d3953c..ab5f8ac 100644
+index 1d3953c..fbf22c2 100644
 --- i/hangul/hangulkeyboard.h
 +++ w/hangul/hangulkeyboard.h
-@@ -1718,3 +1718,68 @@ static const HangulCombinationItem hangul_combination_table_ahn[] = {
+@@ -1718,3 +1718,70 @@ static const HangulCombinationItem hangul_combination_table_ahn[] = {
    { 0x11c211bd, 0x11be }, /* jongseong hieuh        + cieuc  = chieuch       */
    { 0x11ce11c2, 0x11b4 }, /* jongseong rieul-tikeut + hieuh  = rieul-thieuth */
  };
@@ -299,9 +299,11 @@ index 1d3953c..ab5f8ac 100644
 +  { 0x11691161, 0x116a }, /* jungseong o      + a       = wa            */
 +  { 0x11691162, 0x116b }, /* jungseong o      + ae      = wae           */
 +  { 0x11691175, 0x116c }, /* jungseong o      + i       = oe            */
++  { 0x116a1175, 0x116b }, /* jungseong wa     + i       = wae  (sun-arae) */
 +  { 0x116e1165, 0x116f }, /* jungseong u      + eo      = weo           */
 +  { 0x116e1166, 0x1170 }, /* jungseong u      + e       = we            */
 +  { 0x116e1175, 0x1171 }, /* jungseong u      + i       = wi            */
++  { 0x116f1175, 0x1170 }, /* jungseong weo    + i       = we   (sun-arae) */
 +  { 0x11731175, 0x1174 }, /* jungseong eu     + i       = yi            */
 +  { 0x11a811a8, 0x11a9 }, /* jongseong kiyeok + kiyeok  = ssangekiyeok  */
 +  { 0x11a811ba, 0x11aa }, /* jongseong kiyeok + sios    = kiyeok-sois   */
