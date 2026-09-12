@@ -25,7 +25,7 @@ _commit=ede437b2d38bcc37abf382d9136f3ccbf8e16c08
 pkgdesc="Hangul Wrapper For Fcitx5, patched with a Dubeolsik Sun-arae (두벌식 순아래) keyboard option"
 arch=('x86_64' 'aarch64')
 url="https://github.com/fcitx/fcitx5-hangul"
-license=('GPL-2.0-or-later')
+license=('LGPL-2.1-or-later' 'GPL-2.0-or-later')
 depends=('fcitx5' 'libhangul')
 makedepends=('git' 'cmake' 'extra-cmake-modules' 'gettext')
 provides=("fcitx5-hangul=$pkgver")

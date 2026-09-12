@@ -100,3 +100,13 @@ There's an open feature request for exactly this
 (<https://github.com/libhangul/libhangul/issues/31>). `patches/0001-*.patch`
 is written to be legible as a standalone contribution if upstream wants
 it.
+
+## License
+
+This project's own content (`patches/`, `docs/`, `tests/`, `packaging/`,
+`fcitx5/`) is MIT-licensed — see [`LICENSE`](LICENSE).
+`vendor/libhangul/` and `vendor/fcitx5-hangul/` are copies of their
+respective upstream projects with this project's patch applied, and
+remain under their own original licenses (LGPL-2.1-or-later, with a
+few GPL-2.0-or-later files in `fcitx5-hangul`'s test suite) — see
+`LICENSE` for details.

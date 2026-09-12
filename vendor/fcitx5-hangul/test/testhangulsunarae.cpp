@@ -1,4 +1,6 @@
 /*
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ *
  * dubeolsik-sunarae project: end-to-end check that the "Dubeolsik
  * Sun-arae" keyboard, once selected via fcitx5-hangul's own config
  * option (not just at the libhangul API level), reproduces the worked
