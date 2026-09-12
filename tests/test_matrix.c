@@ -107,6 +107,11 @@ int main() {
     check("ieung + ye  (예)",        "dul", "dP");
     check("giyeok + ye (계)",        "rul", "rP");
     check("ieung+ye+batchim s (옛)", "dult", "dPt");
+    /* Also stated in rule 2.2 (not the 24-key-only variant): doubling
+     * the second half of an already-formed wa/weo diphthong with i
+     * extends it to wae/we, same spirit as ya+i/yeo+i above. */
+    check("ieung + o+a+i = wae (왜)", "dhkl", "dho");
+    check("ieung + u+eo+i = we (웨)", "dnjl", "dnp");
 
     printf("\n=== Rule 2.3: doubled JONGSEONG key tenses the batchim ===\n");
     check("bieup+a+batchim gg (밖)", "qkrr", "qkR");
