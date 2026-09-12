@@ -31,7 +31,7 @@ What changes is composition:
 | Rule | Effect | Example |
 |---|---|---|
 | 2.1 | Same **vowel** key twice right after a plain consonant → tenses that consonant | `ㄷㅡㅡㅅ` → 뜻 |
-| 2.2 | `ㅑ+ㅣ` / `ㅕ+ㅣ` → `ㅒ`/`ㅖ`, no Shift | `ㅇㅕㅣㅅ` → 옛 |
+| 2.2 | `ㅑ+ㅣ`/`ㅕ+ㅣ`/`ㅘ+ㅣ`/`ㅝ+ㅣ` → `ㅒ`/`ㅖ`/`ㅙ`/`ㅞ`, no Shift (plus `ㅏ+ㅣ`/`ㅓ+ㅣ` → `ㅐ`/`ㅔ` as extras) | `ㅇㅕㅣㅅ` → 옛 |
 | 2.3 | Same **batchim** key twice → tense batchim | `ㄱㅓㄱㄱ` → 걲 |
 | 2.4 | Old Shift-based input still works; can be mixed | `ㄲㅓㄲ` / `ㄲㅓㄱㄱ` / `ㄱㅓㅓㄲ` → 꺾 |
 

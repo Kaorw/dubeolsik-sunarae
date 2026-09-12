@@ -169,6 +169,41 @@ gcc tests/test_matrix.c $(pkg-config --cflags --libs libhangul) -o /path/under/H
 system's `pkg-config` output, to test a not-yet-installed build —
 same `/tmp` gotcha from Level 2 applies.)
 
+## Level 7 — walking through every example on the spec page (2026-09-12)
+
+User asked to specifically try every example given on
+<https://sites.google.com/site/tinyduckn/dubeolsig-sun-alae>, not just
+the ones already picked out for `docs/ALGORITHM.md`. Wrote a one-off
+walkthrough covering all 17 example lines from the page, in order,
+cross-checked the same way as Level 6. Found two real gaps:
+
+- Rule 2.2 as literally stated also covers `ㅘ+ㅣ`→`ㅙ` and `ㅝ+ㅣ`→`ㅞ`
+  (e.g. "왜" via `ㅇㅗㅏㅣ`), not just `ㅑ+ㅣ`/`ㅕ+ㅣ`. Missing because the
+  3beol reference implementation this project ported from didn't have
+  them either (checked its actual shipped table, not just its
+  changelog prose).
+- Once that was found and fixed, the user separately asked for the
+  page's "24-key correspondence" extras (`ㅏ+ㅣ`→`ㅐ`, `ㅓ+ㅣ`→`ㅔ`) too,
+  even though the page frames those as a distinct Windows-only variant.
+  Added as harmless extras (same table, two more rows).
+
+Both fixes are two-line additions to the same combination table added
+in Level 2/6 — no automaton logic changes. `libhangul` went through two
+more package builds for this: `0.2.0-101` (wae/we) and `0.2.0-102`
+(ae/e), each reinstalled and re-verified. `tests/test_matrix.c` now has
+68/68 checks passing (was 62; added the 6 new combinations found here).
+
+**Debugging note:** after installing `0.2.0-101`, the live fcitx5 test
+still showed the old (broken) behavior. Not a bug in the patch — a
+long-running process keeps its old shared library mapped in memory
+even after the file on disk is replaced; `pkill -9 fcitx5` +
+`systemctl --user restart omarchy-fcitx5.service` is required after
+every `libhangul` reinstall, the same as after every config change
+(see the Level 5 note above).
+
+Confirmed live and working after `0.2.0-102`: 왜 (`dhkl`), ㅐ (`kl`), and
+ㅔ (`jl`) all correct in a real text field.
+
 ## Not yet tested
 
 - Real keyboard *hardware* behavior under Hyprland — key repeat (a
@@ -176,6 +211,9 @@ same `/tmp` gotcha from Level 2 applies.)
   double-keystroke rules, IME candidate window interaction, and other
   input methods/apps (browser, terminal, GTK/Qt text fields) beyond
   the one field already checked in Level 5.
-- The Windows "24-key correspondence" alternate forms of rule 2.1
-  (doubling the *second* half of a diphthong, or dropping ㅐ/ㅔ
-  entirely) — known, documented non-goal; see `docs/ALGORITHM.md`.
+- The Windows "24-key correspondence" variant's one remaining
+  unimplemented piece: doubling the *second* half of a diphthong
+  instead of the first for rule 2.1 (e.g. `g,o,ae,ae,g` for 꽥) —
+  known, documented non-goal; see `docs/ALGORITHM.md`. (The variant's
+  other two combinations, `ㅏ+ㅣ`→`ㅐ` and `ㅓ+ㅣ`→`ㅔ`, are implemented —
+  see Level 7.)

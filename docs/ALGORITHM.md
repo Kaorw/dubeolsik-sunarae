@@ -33,19 +33,31 @@ itself still only counts once.
   *first* vowel of the diphthong ㅗㅐ tenses `ㄱ`→`ㄲ`; the diphthong
   ㅗ+ㅐ=ㅙ still composes normally afterward.
   - The Windows "24-key" variant of Sun-arae also allows doubling the
-    *second* half of a diphthong instead (`g,o,ae,ae,g`), and separately
-    drops the need for the ㅐ/ㅔ keys entirely (`ㅏㅣ`→ㅐ, `ㅓㅣ`→ㅔ). This
-    implementation supports the primary form (double the literal
-    repeated keystroke) but not every 24-key alternative — see
-    `docs/RESEARCH.md` and `tests/test_sunarae.c` for what's verified.
+    *second* half of a diphthong instead (`g,o,ae,ae,g`) — that specific
+    alternative isn't implemented here (see `docs/RESEARCH.md`); the
+    primary form (`g,o,o,ae,g`, doubling the literal repeated
+    keystroke) is what's verified in `tests/test_sunarae.c` and
+    `tests/test_matrix.c`.
 
-### 2.2 — ㅒ/ㅖ without Shift
+### 2.2 — ㅒ/ㅖ/ㅙ/ㅞ without Shift
 
 `ㅑ+ㅣ` composes to `ㅒ`, and `ㅕ+ㅣ` composes to `ㅖ` — the same way
 `ㅗ+ㅏ` already composes to `ㅘ` in standard dubeolsik. No Shift key
-involved.
+involved. The page states this rule covers two more pairs the same
+way: `ㅘ+ㅣ`→`ㅙ` and `ㅝ+ㅣ`→`ㅞ` (i.e. finish typing the diphthong,
+then press `ㅣ` to extend it).
 
 - 옛 (ㅇ+ㅖ+ㅅ) = keys `ㅇ ㅕ ㅣ ㅅ` (ieung, yeo, i, s).
+- 왜 (ㅇ+ㅙ) = keys `ㅇ ㅗ ㅏ ㅣ` (ieung, o, a, i) — forms `ㅘ`, then `ㅣ`
+  extends it to `ㅙ`. (The direct `ㅇ ㅗ ㅐ` spelling using the
+  dedicated `ㅐ` key still works too, as always.)
+
+The page separately describes a Windows-only "24-key correspondence"
+variant that drops the dedicated `ㅐ`/`ㅔ` keys entirely, replacing them
+with `ㅏ+ㅣ`→`ㅐ` and `ㅓ+ㅣ`→`ㅔ`. This implementation doesn't do the
+full 24-key remap (the `ㅐ`/`ㅔ` keys still exist and still work), but
+adds those two combinations anyway as harmless extras on top — pressing
+`ㅏ` then `ㅣ` gives `ㅐ` in addition to the dedicated key still working.
 
 ### 2.3 — Tense batchim via a doubled batchim key
 
@@ -86,8 +98,12 @@ default* machinery:
   needs a new lookup table (keyed on a single jamo, not a pair) and a
   few lines checking "did the caller just press the same key as the
   one on top of the stack".
-- Rule 2.2 just needs two more rows in the jungseong combination table
-  (`YA+I=YAE`, `YEO+I=YE`) — pure data, no new logic.
+- Rule 2.2 just needs more rows in the jungseong combination table —
+  pure data, no new logic. Shipped with `YA+I=YAE` and `YEO+I=YE`
+  initially; `WA+I=WAE`, `WEO+I=WE`, `A+I=AE`, and `EO+I=E` were added
+  after walking through every example on the spec page and testing
+  live (see `docs/TESTING.md`) turned up the gap — the 3beol reference
+  implementation this was ported from didn't have them either.
 - Rule 2.3 needs jongseong+jongseong doubling to actually fire, i.e.
   the new automaton must call the raw table lookup
   (`hangul_keyboard_combine`) directly instead of going through the

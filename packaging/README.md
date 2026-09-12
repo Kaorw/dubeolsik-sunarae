@@ -23,7 +23,7 @@ cd ../fcitx5-hangul && makepkg -si
 straight away. Without `-i`, install the built packages manually:
 
 ```sh
-sudo pacman -U packaging/libhangul/libhangul-0.2.0-100-x86_64.pkg.tar.zst
+sudo pacman -U packaging/libhangul/libhangul-0.2.0-102-x86_64.pkg.tar.zst
 sudo pacman -U packaging/fcitx5-hangul/fcitx5-hangul-5.1.11-100-x86_64.pkg.tar.zst
 ```
 
@@ -39,6 +39,13 @@ bare `fcitx5 -r &`, which raced with the systemd-managed instance over
 the D-Bus name and made things worse (see the debugging notes in
 `docs/TESTING.md`). If in doubt, `pkill -9 fcitx5` first, then let
 systemd (or however Omarchy manages it) restart it fresh.
+
+**Every time you reinstall the `libhangul` package** (e.g. after
+rebuilding it with a patch update), also restart fcitx5 the same way —
+a running process keeps the old shared library mapped in memory even
+after `pacman -U` replaces the file on disk, so changes silently don't
+take effect until it restarts. Bit us twice while developing this; see
+`docs/TESTING.md` Level 7.
 
 ## Keeping both installed across `pacman -Syu`
 
