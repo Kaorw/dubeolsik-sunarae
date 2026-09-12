@@ -102,6 +102,28 @@ int main() {
     check("bb + weo (뿨)", "qnnj", "Qnj");
     check("ss + wi  (쒸)", "tnnl", "Tnl");
 
+    printf("\n=== Rule 2.1, \"24-key correspondence\": doubling the SECOND half instead ===\n");
+    /* Only for diphthongs with no dedicated key of their own (see
+     * hangul_ic_sunarae_is_second_half() in the patch) - ae/e are
+     * deliberately excluded, checked separately below. */
+    check("kkaek (꽥) via second-half (ae) doubled", "rhoor", "Rhor");
+    check("gg + weo, second-half (eo) doubled (꿔)", "rnjj", "Rnj");
+    check("gg + we (via u+e), second-half (e) doubled (꿰)", "rnpp", "Rnp");
+    check("gg + wi, second-half (i) doubled (뀌)",  "rnll", "Rnl");
+    /* std2 has no ya+i/yeo+i combination at all (that's rule 2.2's own
+     * addition), so cross-check against the dedicated Shift keys for
+     * yae/ye instead of a std2 combine sequence. */
+    check("gg + yae, second-half (i) doubled",       "rill", "RO");
+    check("gg + ye, second-half (i) doubled",        "rull", "RP");
+    check("gg + yi, second-half (i) doubled",        "rmll", "Rml");
+
+    printf("\n=== Regression: ae/e are NOT treated as doubleable diphthong halves ===\n");
+    /* ae and e have dedicated keys, so a lone ae/e could be either a
+     * single keystroke or the result of a+i/eo+i - ambiguous, so this
+     * must behave exactly like the plain "2" keyboard (no tensify). */
+    check_same_keys("g+ae+i (should stay 개+ㅣ, not tensify)", "rol");
+    check_same_keys("g+e+i  (should stay 게+ㅣ, not tensify)", "rpl");
+
     printf("\n=== Rule 2.2: ya+i -> yae, yeo+i -> ye (no Shift) ===\n");
     check("ieung + yae (얘)",        "dil", "dO");
     check("ieung + ye  (예)",        "dul", "dP");

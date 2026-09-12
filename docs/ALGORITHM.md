@@ -32,12 +32,20 @@ itself still only counts once.
 - 꽥 (ㄲ+ㅗㅐ+ㄱ) = keys `ㄱ ㅗ ㅗ ㅐ ㄱ` (g, o, o, ae, g) — doubling the
   *first* vowel of the diphthong ㅗㅐ tenses `ㄱ`→`ㄲ`; the diphthong
   ㅗ+ㅐ=ㅙ still composes normally afterward.
-  - The Windows "24-key" variant of Sun-arae also allows doubling the
-    *second* half of a diphthong instead (`g,o,ae,ae,g`) — that specific
-    alternative isn't implemented here (see `docs/RESEARCH.md`); the
-    primary form (`g,o,o,ae,g`, doubling the literal repeated
-    keystroke) is what's verified in `tests/test_sunarae.c` and
-    `tests/test_matrix.c`.
+  - The Windows "24-key correspondence" variant of Sun-arae also allows
+    doubling the *second* half of a diphthong instead: `ㄱ ㅗ ㅐ ㅐ ㄱ`
+    (g, o, ae, ae, g) tenses the same way. Implemented for every
+    diphthong that has no dedicated key of its own — ㅘㅙㅚㅝㅞㅟㅒㅖㅢ —
+    since a buffered value like `WAE` can only ever have come from a
+    two-keystroke combine, so doubling either half is unambiguous.
+    **Not** implemented for `ㅐ`/`ㅔ` specifically: those two *do* have a
+    dedicated key, so a buffered `ㅐ` might be a single keystroke or the
+    result of `ㅏ+ㅣ` — there's no way to tell which, and treating every
+    lone `ㅐ` followed by `ㅣ` as a tense-choseong signal would misfire
+    on ordinary text (typing 개 then a separate ㅣ). See
+    `hangul_ic_sunarae_is_second_half()` in the patch and
+    `tests/test_matrix.c`'s "24-key correspondence" section for the
+    full reasoning and the regression tests that pin this down.
 
 ### 2.2 — ㅒ/ㅖ/ㅙ/ㅞ without Shift
 

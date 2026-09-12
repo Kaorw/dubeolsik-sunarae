@@ -748,6 +748,40 @@ flush:
     return false;
 }
 
+/* dubeolsik-sunarae project: is `ch` the SECOND jamo of the diphthong
+ * `jung`, for one of the diphthongs that has no dedicated key of its
+ * own (so it can only ever have been reached by a two-keystroke
+ * combine)? Used by the sun-arae automaton to also tense the buffered
+ * choseong when the *second* half of a diphthong is doubled (the
+ * "24-key correspondence" form of rule 2.1: e.g. ㄱㅗㅐㅐㄱ for 꽥,
+ * doubling ㅐ instead of ㅗ), on top of the already-supported "double
+ * the first half" form (ㄱㅗㅗㅐㄱ).
+ *
+ * Deliberately excludes ㅐ (AE) and ㅔ (E): those two DO have a
+ * dedicated key, so a buffered AE/E might have come from that single
+ * keystroke rather than from ㅏ+ㅣ/ㅓ+ㅣ, and there is no way to tell
+ * which from `hic->buffer.jungseong` alone. Treating a lone ㅐ followed
+ * by ㅣ as "double ㅣ, please tense the choseong" would misfire on
+ * ordinary text (e.g. typing 개 then a separate ㅣ). The diphthongs
+ * below have no such ambiguity: nothing else can produce them. */
+static bool
+hangul_ic_sunarae_is_second_half(ucschar jung, ucschar ch)
+{
+    switch (jung) {
+    case 0x116a: /* wa  = o   + a  */ return ch == 0x1161; /* a */
+    case 0x116b: /* wae = o   + ae */ return ch == 0x1162; /* ae */
+    case 0x116c: /* oe  = o   + i  */ return ch == 0x1175; /* i */
+    case 0x116f: /* weo = u   + eo */ return ch == 0x1165; /* eo */
+    case 0x1170: /* we  = u   + e, or weo + i */
+	return ch == 0x1166 /* e */ || ch == 0x1175 /* i */;
+    case 0x1171: /* wi  = u   + i  */ return ch == 0x1175; /* i */
+    case 0x1164: /* yae = ya  + i  */ return ch == 0x1175; /* i */
+    case 0x1168: /* ye  = yeo + i  */ return ch == 0x1175; /* i */
+    case 0x1174: /* yi  = eu  + i  */ return ch == 0x1175; /* i */
+    default: return false;
+    }
+}
+
 /* dubeolsik-sunarae project: 두벌식 순아래 (Dubeolsik Sun-arae).
  *
  * This is hangul_ic_process_jamo() with one addition: while a choseong and
@@ -861,8 +895,15 @@ hangul_ic_process_jamo_sunarae(HangulInputContext *hic, ucschar ch)
 	    ucschar tensed = 0;
 
 	    /* Sun-arae rule 2.1: same jungseong key twice tenses the
-	     * buffered choseong instead of combining as a jungseong. */
-	    if (hic->buffer.choseong && ch == hangul_ic_peek(hic)) {
+	     * buffered choseong instead of combining as a jungseong -
+	     * whether it's the first half of a diphthong being repeated
+	     * (ch == hangul_ic_peek(hic), the common case) or, for
+	     * diphthongs with no dedicated key, the second half (the
+	     * "24-key correspondence" form; see
+	     * hangul_ic_sunarae_is_second_half()). */
+	    if (hic->buffer.choseong &&
+		(ch == hangul_ic_peek(hic) ||
+		 hangul_ic_sunarae_is_second_half(hic->buffer.jungseong, ch))) {
 		tensed = hangul_keyboard_combine(hic->keyboard, 2,
 						 0, hic->buffer.choseong);
 	    }

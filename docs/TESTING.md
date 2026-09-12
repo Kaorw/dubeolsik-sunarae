@@ -211,9 +211,37 @@ Confirmed live and working after `0.2.0-102`: 왜 (`dhkl`), ㅐ (`kl`), and
   double-keystroke rules, IME candidate window interaction, and other
   input methods/apps (browser, terminal, GTK/Qt text fields) beyond
   the one field already checked in Level 5.
-- The Windows "24-key correspondence" variant's one remaining
-  unimplemented piece: doubling the *second* half of a diphthong
-  instead of the first for rule 2.1 (e.g. `g,o,ae,ae,g` for 꽥) —
-  known, documented non-goal; see `docs/ALGORITHM.md`. (The variant's
-  other two combinations, `ㅏ+ㅣ`→`ㅐ` and `ㅓ+ㅣ`→`ㅔ`, are implemented —
-  see Level 7.)
+All three pieces of the "24-key correspondence" variant are now
+implemented (see Level 8 below) — every example on the source page has
+been tried and works, except the parts that are mutually exclusive with
+each other by construction (see `docs/ALGORITHM.md`).
+
+## Level 8 — "24-key correspondence" second-half doubling (2026-09-12)
+
+User asked to finish the one remaining piece from Level 7: the page's
+alternate way to double a diphthong's tensing signal, using the
+*second* half instead of the first (`ㄱㅗㅐㅐㄱ` for 꽥, vs. the
+already-supported `ㄱㅗㅗㅐㄱ`).
+
+This needed a real (small) logic change, not just another table row:
+the existing check compared the incoming key against
+`hangul_ic_peek()` (top of the internal stack), which only equals the
+raw incoming jamo *before* a diphthong has combined — once `ㅗ+ㅐ`
+combines to `ㅙ`, the stack top is `ㅙ`, not `ㅐ`, so the same check
+can't recognize "the second half was doubled". Added
+`hangul_ic_sunarae_is_second_half(jung, ch)`, a small switch checking
+whether `ch` is the known second component of a *diphthong that has no
+dedicated key of its own* (ㅘㅙㅚㅝㅞㅟㅒㅖㅢ) — those can only ever
+result from a two-keystroke combine, so there's no ambiguity.
+
+Deliberately excludes ㅐ/ㅔ (which *do* have dedicated keys): a buffered
+`ㅐ` might be one keystroke or the result of `ㅏ+ㅣ` (added in Level 7),
+and there's no way to distinguish them from `hic->buffer.jungseong`
+alone. Verified this exclusion is actually needed and correct with a
+dedicated regression test (`tests/test_matrix.c`, "ae/e are NOT treated
+as doubleable diphthong halves" — typing `g,ae,i` must stay 개+ㅣ, not
+misfire into tensifying).
+
+`tests/test_matrix.c` grew from 68 to 77 checks (7 new second-half
+cases + 2 regression cases for the ㅐ/ㅔ exclusion); all pass, both
+against the dev build and after packaging.

@@ -12,7 +12,7 @@
 
 pkgname=libhangul
 pkgver=0.2.0
-pkgrel=102
+pkgrel=103
 _commit=a34aef73378c0992316861bbf13fc914ee7577d9
 pkgdesc="Input method library for Korean, patched with the Dubeolsik Sun-arae (두벌식 순아래) keyboard"
 arch=('x86_64' 'aarch64')
@@ -25,7 +25,7 @@ conflicts=('libhangul')
 source=("libhangul::git+https://github.com/libhangul/libhangul.git#commit=$_commit"
          "0001-add-dubeolsik-sunarae-keyboard.patch")
 sha256sums=('SKIP'
-            '3817e8df3da892a0ccf348ef8a9d58ea74f530a0c2f7723937b688d9480ff161')
+            'bd53a523b96bca8710eaa4fa74f0f3024b392b070396e6006f73f8927d901dea')
 
 prepare() {
   cd "$srcdir/libhangul"
