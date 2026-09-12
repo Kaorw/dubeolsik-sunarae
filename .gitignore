@@ -1,12 +1,14 @@
-# makepkg build artifacts
-packaging/src/
-packaging/pkg/
-packaging/*.pkg.tar.*
-packaging/*.log
+# makepkg build artifacts (both packages live in packaging/<name>/)
+packaging/*/src/
+packaging/*/pkg/
+packaging/*/*.pkg.tar.*
+packaging/*/*.log
+packaging/*/libhangul/
+packaging/*/fcitx5-hangul/
 
 # scratch test binaries (never build these into /tmp - see docs/TESTING.md)
 /test_sunarae
 /test_hangul
 
-# makepkg VCS source cache (bare clone kept next to PKGBUILD)
-packaging/libhangul/
+# fcitx5-hangul CMake build directory
+vendor/fcitx5-hangul/build/

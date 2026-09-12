@@ -13,17 +13,15 @@ for the full rules and worked examples, and
 
 ## Status
 
-- `libhangul`: implemented, builds, and passes local functional tests
-  (see [`docs/TESTING.md`](docs/TESTING.md)), including via the
-  bundled `hangul` CLI tool. Not yet installed system-wide — see
-  [Installing](#installing).
-- `fcitx5-hangul`: **not yet patched**. It hardcodes its selectable
-  keyboards as a fixed list and doesn't read libhangul's keyboard
-  registry, so the new layout isn't reachable from fcitx5's config yet
-  even after installing the patched `libhangul`. See
-  [`docs/NEXT-STEPS.md`](docs/NEXT-STEPS.md) for exactly what's needed
-  and why it's deferred (build tooling not yet installed on this
-  machine).
+**Working and installed.** Both `libhangul` (adds the `2sunarae`
+keyboard) and `fcitx5-hangul` (adds it as a selectable `Keyboard`
+option) are patched, built, packaged, and installed on this machine —
+see [`packaging/README.md`](packaging/README.md). Typing through the
+real fcitx5 input method with `Keyboard=Dubeolsik Sun-arae` selected
+produces the worked examples correctly (뜻 confirmed live; see
+[`docs/TESTING.md`](docs/TESTING.md) for the full test log, including
+a debugging note about a systemd/D-Bus activation race that briefly
+made this look broken).
 
 ## Layout
 
@@ -40,12 +38,14 @@ What changes is composition:
 ## Repo layout
 
 ```
-docs/            design notes, algorithm spec, research log, test log
-patches/         the libhangul patch, as a standalone reviewable diff
-vendor/libhangul patched libhangul source tree (patch already applied, builds as-is)
-packaging/       Arch PKGBUILD to build+install the patched libhangul
-fcitx5/          fcitx5-hangul config snippet to select the new layout
-tests/           C test harness exercising libhangul's HangulInputContext API directly
+docs/                 design notes, algorithm spec, research log, test log
+patches/              the two patches (libhangul, fcitx5-hangul), as standalone reviewable diffs
+vendor/libhangul      patched libhangul source tree (patch already applied, builds as-is)
+vendor/fcitx5-hangul  patched fcitx5-hangul source tree (same)
+packaging/libhangul   Arch PKGBUILD to build+install the patched libhangul
+packaging/fcitx5-hangul  Arch PKGBUILD to build+install the patched fcitx5-hangul
+fcitx5/               fcitx5-hangul config snippet to select the new layout
+tests/                C test harness exercising libhangul's HangulInputContext API directly
 ```
 
 ## How it's implemented
@@ -57,13 +57,15 @@ directly to `libhangul` (not `kime` — see
 small combination tables. No other keyboard's behavior changes.
 
 `fcitx5-hangul` wraps `libhangul` and exposes a `Keyboard=` setting in
-`~/.config/fcitx5/conf/hangul.conf`, but that setting is a fixed,
+`~/.config/fcitx5/conf/hangul.conf`, but that setting was a fixed,
 hardcoded enum (`HangulKeyboard` in `fcitx5-hangul/src/engine.h`), not
 a passthrough to whatever `libhangul` reports — so `fcitx5-hangul`
-itself also needs a small patch (two lists, each gaining one entry) to
-make `2sunarae` selectable. See
-[`docs/NEXT-STEPS.md`](docs/NEXT-STEPS.md) and
-[`patches/0002-fcitx5-hangul-add-sunarae-option.patch.DRAFT`](patches/0002-fcitx5-hangul-add-sunarae-option.patch.DRAFT).
+needed its own small patch too (two lists, each gaining one entry, both
+appends so no saved config is renumbered) to make `2sunarae` selectable
+as "Dubeolsik Sun-arae". See
+[`patches/0002-fcitx5-hangul-add-sunarae-option.patch`](patches/0002-fcitx5-hangul-add-sunarae-option.patch)
+and `test/testhangulsunarae.cpp` in `vendor/fcitx5-hangul` for an
+end-to-end test through a real fcitx5 `Instance`.
 
 ## Building
 
@@ -84,14 +86,13 @@ LD_LIBRARY_PATH=vendor/libhangul/hangul/.libs /tmp/test_sunarae
 
 ## Installing
 
-This replaces the system `libhangul` package, so it's packaged as a
-proper pacman package rather than a bare `make install` (which pacman
-can't track and a later `pacman -Syu` would silently fight with). See
-[`packaging/PKGBUILD`](packaging/PKGBUILD) and
-[`packaging/README.md`](packaging/README.md) for the build/install/
-upgrade-pinning steps, and [`fcitx5/hangul.conf`](fcitx5/hangul.conf)
-for the config change that actually switches your input method to
-Sun-arae afterwards.
+This replaces two system packages, so both are packaged as proper
+pacman packages rather than a bare `make`/`cmake --install` (which
+pacman can't track and a later `pacman -Syu` would silently fight
+with). See [`packaging/README.md`](packaging/README.md) for the full
+build/install/upgrade-pinning steps, and
+[`fcitx5/hangul.conf`](fcitx5/hangul.conf) for the config change that
+actually switches your input method to Sun-arae afterwards.
 
 ## Upstream
 

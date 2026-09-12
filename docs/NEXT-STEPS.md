@@ -1,66 +1,50 @@
 # Next steps
 
-## 1. Patch `fcitx5-hangul` so the layout is actually selectable
+## Done
 
-Confirmed by reading `fcitx5-hangul`'s source (tag `5.1.11`, matching
-the installed `fcitx5-hangul 5.1.11-1`): its `Keyboard` config option
-is a fixed `enum class HangulKeyboard` (`src/engine.h`) mapped through
-a parallel `static const char *keyboardId[]` array (`src/engine.cpp`)
-— it does **not** enumerate whatever `libhangul` reports at runtime.
-So a patched `libhangul` with `2sunarae` registered is necessary but
-not sufficient; `fcitx5-hangul` needs one small patch too:
+1. ~~Patch `fcitx5-hangul`~~ — done, see
+   `patches/0002-fcitx5-hangul-add-sunarae-option.patch` and
+   `vendor/fcitx5-hangul/test/testhangulsunarae.cpp` (end-to-end test
+   through a real fcitx5 `Instance`, passing).
+2. ~~Install the patched `libhangul` system-wide~~ — done
+   (`0.2.0-100`, pinned via `IgnorePkg` in `/etc/pacman.conf`).
+3. ~~Install the patched `fcitx5-hangul` system-wide~~ — done
+   (`5.1.11-100`, pinned the same way).
+4. ~~End-to-end test through real fcitx5~~ — done: typing `emmt` with
+   `Keyboard=Dubeolsik Sun-arae` selected produces 뜻 in a live text
+   field (2026-09-12).
 
-- append `Dubeolsik_Sunarae` to the `HangulKeyboard` enum
-- append `N_("Dubeolsik Sun-arae")` to the matching
-  `FCITX_CONFIG_ENUM_NAME_WITH_I18N` name list
-- append `"2sunarae"` to `keyboardId[]`
+## In progress
 
-All three are **appends**, not insertions, so nobody's saved
-`Keyboard=` config value (stored as enum name, not index) breaks.
+- **Exhaustive combination testing** — the user asked to test as many
+  key combinations as possible beyond the five worked examples already
+  covered. See `docs/TESTING.md` for the expanded test matrix (all 5
+  tense consonants × several vowel contexts, both tense batchim, all
+  standard diphthongs and compound batchim as a regression check, and
+  a broader word list).
 
-The exact diff is drafted (not yet built or tested) in
-`patches/0002-fcitx5-hangul-add-sunarae-option.patch.DRAFT`.
+## Known separate issue (not this project's bug)
 
-This was scoped out of the current pass because it needs `cmake` and
-`extra-cmake-modules`, which aren't installed on this machine, and
-installing packages needs the user's `sudo` password interactively.
-When ready:
+This machine's `omarchy-fcitx5.service` (systemd user unit) and D-Bus
+service activation (`/usr/share/dbus-1/services/org.fcitx.Fcitx5.service`)
+both try to own the `org.fcitx.Fcitx5` bus name independently. Whichever
+loses ends up in an `activating (auto-restart)` crash loop
+(`Failed to create addon: dbus ... Is there another fcitx already
+running?`). Pre-existing Omarchy configuration, unrelated to this
+project's patches — noted here because it made testing confusing (a
+manually-run `fcitx5 -r &` raced with the systemd unit and looked like
+our patch was silently reverting config). Workaround used during
+testing: `pkill -9 fcitx5` then `systemctl --user restart
+omarchy-fcitx5.service` to get a single, clean instance. Worth a
+separate look if it keeps causing trouble, but out of scope here.
 
-```sh
-sudo pacman -S --needed cmake extra-cmake-modules
-```
+## Optional: propose upstream
 
-then clone `fcitx5-hangul` at tag `5.1.11` (or whatever's installed —
-check with `pacman -Qi fcitx5-hangul`), apply the finished patch,
-build with CMake, and package the same way `packaging/PKGBUILD` does
-for `libhangul` (a small second PKGBUILD, `provides`/`conflicts`
-against the real `fcitx5-hangul`).
+Both patches are written to be legible as standalone PRs:
 
-## 2. Install the patched `libhangul` system-wide
-
-`packaging/PKGBUILD` is built and ready
-(`makepkg` succeeds — see `docs/TESTING.md`). Installing it replaces
-the system `libhangul` package, which is a change worth confirming
-with the user explicitly before running, since:
-
-- it affects every application that links `libhangul` (any Fcitx5 or
-  ibus Korean input, not just this project)
-- it needs `sudo pacman -U`
-- it needs `IgnorePkg = libhangul` in `/etc/pacman.conf` to stay
-  installed across `pacman -Syu` (see `packaging/README.md`)
-
-## 3. End-to-end test once both patches are installed
-
-- `fcitx5-hangul` selectable via `fcitx5-configtool` or
-  `fcitx5/hangul.conf`.
-- Type the worked examples from `docs/ALGORITHM.md` (뜻, 꽥, 옛, 걲, 꺾)
-  into a real text field (terminal, browser) under Hyprland/Omarchy,
-  not just through the library-level test harness.
-
-## 4. Optional: propose upstream
-
-`patches/0001-add-dubeolsik-sunarae-keyboard.patch` is written to be
-legible as a standalone PR against
-<https://github.com/libhangul/libhangul>, which has an open issue
-asking for exactly this (#31). Worth opening a PR there so this
-doesn't need to be carried as a local patch indefinitely.
+- `patches/0001-add-dubeolsik-sunarae-keyboard.patch` against
+  <https://github.com/libhangul/libhangul> (open issue #31 asks for
+  exactly this).
+- `patches/0002-fcitx5-hangul-add-sunarae-option.patch` against
+  <https://github.com/fcitx/fcitx5-hangul>, would only make sense once
+  (if) the libhangul patch lands upstream first.

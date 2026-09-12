@@ -1,0 +1,143 @@
+diff --git a/src/engine.cpp b/src/engine.cpp
+index ff8647c..191ac89 100644
+--- a/src/engine.cpp
++++ b/src/engine.cpp
+@@ -37,7 +37,7 @@
+ #include <utility>
+ 
+ static const char *keyboardId[] = {"2",  "2y", "39", "3f", "3s",
+-                                   "3y", "32", "ro", "ahn"};
++                                   "3y", "32", "ro", "ahn", "2sunarae"};
+ 
+ constexpr auto MAX_LENGTH = 40;
+ 
+diff --git a/src/engine.h b/src/engine.h
+index cfb4f05..323fe03 100644
+--- a/src/engine.h
++++ b/src/engine.h
+@@ -40,6 +40,7 @@ enum class HangulKeyboard {
+     Sebeolsik_Dubeol_Layout,
+     Romaja,
+     Ahnmatae,
++    Dubeolsik_Sunarae,
+ };
+ 
+ FCITX_CONFIG_ENUM_NAME_WITH_I18N(HangulKeyboard, N_("Dubeolsik"),
+@@ -47,7 +48,7 @@ FCITX_CONFIG_ENUM_NAME_WITH_I18N(HangulKeyboard, N_("Dubeolsik"),
+                                  N_("Sebeolsik Final"), N_("Sebeolsik Noshift"),
+                                  N_("Sebeolsik Yetgeul"),
+                                  N_("Sebeolsik Dubeol Layout"), N_("Romaja"),
+-                                 N_("Ahnmatae"));
++                                 N_("Ahnmatae"), N_("Dubeolsik Sun-arae"));
+ 
+ FCITX_CONFIGURATION(
+     HangulConfig,
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index bf5ec58..f19c41a 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -6,3 +6,10 @@ add_executable(testhangul testhangul.cpp)
+ target_link_libraries(testhangul Fcitx5::Core Fcitx5::Module::TestFrontend)
+ add_dependencies(testhangul copy-addon copy-im)
+ add_test(NAME testhangul COMMAND testhangul)
++
++# dubeolsik-sunarae project: end-to-end check of the Sun-arae keyboard
++# option added to this addon.
++add_executable(testhangulsunarae testhangulsunarae.cpp)
++target_link_libraries(testhangulsunarae Fcitx5::Core Fcitx5::Module::TestFrontend)
++add_dependencies(testhangulsunarae copy-addon copy-im)
++add_test(NAME testhangulsunarae COMMAND testhangulsunarae)
+diff --git a/test/testhangulsunarae.cpp b/test/testhangulsunarae.cpp
+new file mode 100644
+index 0000000..bc8637a
+--- /dev/null
++++ b/test/testhangulsunarae.cpp
+@@ -0,0 +1,88 @@
++/*
++ * dubeolsik-sunarae project: end-to-end check that the "Dubeolsik
++ * Sun-arae" keyboard, once selected via fcitx5-hangul's own config
++ * option (not just at the libhangul API level), reproduces the worked
++ * examples from docs/ALGORITHM.md through a real fcitx5 Instance +
++ * the hangul input method engine.
++ *
++ * Modeled on testhangul.cpp, with a RawConfig switching
++ * HangulConfig::keyboard to Dubeolsik_Sunarae before sending keys.
++ */
++#include "testdir.h"
++#include "testfrontend_public.h"
++#include <fcitx-config/rawconfig.h>
++#include <fcitx-utils/eventdispatcher.h>
++#include <fcitx-utils/key.h>
++#include <fcitx-utils/keysym.h>
++#include <fcitx-utils/log.h>
++#include <fcitx-utils/macros.h>
++#include <fcitx-utils/testing.h>
++#include <fcitx/addonmanager.h>
++#include <fcitx/inputmethodgroup.h>
++#include <fcitx/inputmethodmanager.h>
++#include <fcitx/inputpanel.h>
++#include <fcitx/instance.h>
++
++using namespace fcitx;
++
++void scheduleEvent(Instance *instance) {
++    instance->eventDispatcher().schedule([instance]() {
++        auto *hangul = instance->addonManager().addon("hangul", true);
++        FCITX_ASSERT(hangul);
++
++        RawConfig config;
++        config["Keyboard"] = "Dubeolsik Sun-arae";
++        hangul->setConfig(config);
++
++        auto defaultGroup = instance->inputMethodManager().currentGroup();
++        defaultGroup.inputMethodList().clear();
++        defaultGroup.inputMethodList().push_back(
++            InputMethodGroupItem("keyboard-us"));
++        defaultGroup.inputMethodList().push_back(
++            InputMethodGroupItem("hangul"));
++        defaultGroup.setDefaultInputMethod("");
++        instance->inputMethodManager().setGroup(defaultGroup);
++        auto *testfrontend = instance->addonManager().addon("testfrontend");
++        auto uuid =
++            testfrontend->call<ITestFrontend::createInputContext>("testapp");
++        auto *ic = instance->inputContextManager().findByUUID(uuid);
++        FCITX_ASSERT(testfrontend->call<ITestFrontend::sendKeyEvent>(
++            uuid, Key("Control+space"), false));
++        FCITX_ASSERT(instance->inputMethod(ic) == "hangul");
++
++        // 뜻 꽥 옛 걲 꺾, per docs/ALGORITHM.md - the same keys already
++        // verified against raw libhangul in tests/test_sunarae.c.
++        testfrontend->call<ITestFrontend::pushCommitExpectation>("뜻");
++        testfrontend->call<ITestFrontend::pushCommitExpectation>("꽥");
++        testfrontend->call<ITestFrontend::pushCommitExpectation>("옛");
++        testfrontend->call<ITestFrontend::pushCommitExpectation>("걲");
++        testfrontend->call<ITestFrontend::pushCommitExpectation>("꺾");
++
++        const char *keys = "emmtrhhordultrjrrrjjrr";
++        for (const char *p = keys; *p; ++p) {
++            std::string k(1, *p);
++            FCITX_ASSERT(testfrontend->call<ITestFrontend::sendKeyEvent>(
++                uuid, Key(k), false));
++        }
++
++        instance->deactivate();
++    });
++
++    instance->eventDispatcher().schedule([instance]() { instance->exit(); });
++}
++
++int main() {
++    setupTestingEnvironmentPath(TESTING_BINARY_DIR, {"bin"},
++                                {TESTING_BINARY_DIR "/test"});
++    char arg0[] = "testhangulsunarae";
++    char arg1[] = "--disable=all";
++    char arg2[] = "--enable=testim,testfrontend,hangul";
++    char *argv[] = {arg0, arg1, arg2};
++    fcitx::Log::setLogRule("default=5,hangul=5");
++    Instance instance(FCITX_ARRAY_SIZE(argv), argv);
++    instance.addonManager().registerDefaultLoader(nullptr);
++    scheduleEvent(&instance);
++    instance.exec();
++
++    return 0;
++}

@@ -1,0 +1,57 @@
+# Maintainer: (local, unofficial — see packaging/README.md)
+#
+# fcitx5-hangul, patched to expose the "2sunarae" (두벌식 순아래)
+# keyboard added by this project's patched libhangul as a selectable
+# "Keyboard" option. Based on upstream tag 5.1.11 (commit
+# ede437b2d38bcc37abf382d9136f3ccbf8e16c08), the same commit Arch's
+# extra/fcitx5-hangul 5.1.11-1 is built from. See ../docs/RESEARCH.md
+# and ../docs/NEXT-STEPS.md for why this patch is needed in addition
+# to the libhangul one, and ../patches/ for what changed.
+#
+# Requires the patched libhangul from ./PKGBUILD to already be
+# installed (for the "2sunarae" keyboard to exist at all); builds fine
+# against stock libhangul too, it just won't have anywhere useful to
+# point the new option until then.
+#
+# pkgrel is bumped relative to the real 5.1.11-1 package so
+# `pacman -Syu` won't immediately try to "upgrade" back over this
+# build — see packaging/README.md for pinning it with IgnorePkg,
+# same as libhangul.
+
+pkgname=fcitx5-hangul
+pkgver=5.1.11
+pkgrel=100
+_commit=ede437b2d38bcc37abf382d9136f3ccbf8e16c08
+pkgdesc="Hangul Wrapper For Fcitx5, patched with a Dubeolsik Sun-arae (두벌식 순아래) keyboard option"
+arch=('x86_64' 'aarch64')
+url="https://github.com/fcitx/fcitx5-hangul"
+license=('GPL-2.0-or-later')
+depends=('fcitx5' 'libhangul')
+makedepends=('git' 'cmake' 'extra-cmake-modules' 'gettext')
+provides=("fcitx5-hangul=$pkgver")
+conflicts=('fcitx5-hangul')
+source=("fcitx5-hangul::git+https://github.com/fcitx/fcitx5-hangul.git#commit=$_commit"
+         "0002-fcitx5-hangul-add-sunarae-option.patch")
+sha256sums=('SKIP'
+            'dc2f20005b4cfb5e4cb89f7eee7a3a69a6848b42b5dd82893f13ddc0cb84d94b')
+
+prepare() {
+  cd "$srcdir/fcitx5-hangul"
+  patch -p1 -i "$srcdir/0002-fcitx5-hangul-add-sunarae-option.patch"
+}
+
+build() {
+  cmake -B build -S "$srcdir/fcitx5-hangul" \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_LIBDIR=lib
+  cmake --build build
+}
+
+check() {
+  ctest --test-dir build --output-on-failure
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}
