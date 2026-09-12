@@ -1,125 +1,58 @@
-# The 두벌식 순아래 (Dubeolsik Sun-arae) algorithm
+# 두벌식 순아래(Dubeolsik Sun-arae) 알고리즘
 
-Source: <https://sites.google.com/site/tinyduckn/dubeolsig-sun-alae> (by
-꼬마집오리 / tinyduck), which credits 우덜(3beol), 팥알, 이호석, and
-김용묵 (author of the Windows 날개셋 implementation).
+원 출처: <https://sites.google.com/site/tinyduckn/dubeolsig-sun-alae> (꼬마집오리/tinyduck 작성. 우덜(3beol), 팥알, 이호석, 김용묵(Windows 날개셋 구현 저자)의 크레딧을 명시)
 
-## Why it exists
+## 필요성
 
-Standard 두벌식 (KS X 5002) puts consonants on the left hand and vowels
-on the right, mapping the 19 basic consonant jamo and most vowel jamo
-directly to keys. But it still needs Shift for:
+표준 두벌식(KS X 5002)은 왼손에 자음, 오른손에 모음을 배치해 19개의 기본 자음 자모와 대부분의 모음 자모를 키에 직접 매핑합니다. 다만 다음 두 경우에는 여전히 Shift가 필요합니다.
 
-- the 5 tense consonants ㄲㄸㅃㅆㅉ (both as initial *and* as batchim)
-- the 2 tense-looking compound vowels ㅒ/ㅖ
+- 된소리 자음 5개(ㄲㄸㅃㅆㅉ): 초성과 받침 모두
+- 된소리처럼 보이는 이중모음 2개(ㅒ/ㅖ)
 
-순아래 removes that Shift dependency by reinterpreting a **repeated
-keystroke** as the "make this tense" signal, instead of needing a
-separate Shift-modified key. The physical key layout doesn't change at
-all — same keys, same fingers, same hand assignment — only the
-composition rules change.
+순아래는 별도의 Shift 조합 키 대신 **같은 키의 반복 입력**을 "이 자음을 된소리로 만들라"는 신호로 재해석하여 Shift 의존성을 없앱니다. 물리적 키 배열은 전혀 바뀌지 않습니다. 같은 키, 같은 손가락, 같은 손 배정을 그대로 쓰고, 오직 조합 규칙만 달라집니다.
 
-## The rules
+## 규칙
 
-### 2.1 — Tense initial consonant via a doubled following vowel
+### 2.1: 뒤따르는 모음을 중복 입력해 초성을 된소리로
 
-After typing a plain consonant, pressing the *next* vowel key **twice**
-(instead of once) retypes that consonant as its tense form. The vowel
-itself still only counts once.
+평자음을 입력한 뒤, 바로 다음 모음 키를 (한 번이 아니라) **두 번** 누르면 해당 자음이 된소리로 재입력됩니다. 모음 자체는 한 번만 입력된 것으로 처리됩니다.
 
-- 뜻 (ㄸ+ㅡ+ㅅ) = keys `ㄷ ㅡ ㅡ ㅅ` (d, eu, eu, s) — doubling `ㅡ` tenses
-  `ㄷ`→`ㄸ`, then `ㅅ` is the batchim.
-- 꽥 (ㄲ+ㅗㅐ+ㄱ) = keys `ㄱ ㅗ ㅗ ㅐ ㄱ` (g, o, o, ae, g) — doubling the
-  *first* vowel of the diphthong ㅗㅐ tenses `ㄱ`→`ㄲ`; the diphthong
-  ㅗ+ㅐ=ㅙ still composes normally afterward.
-  - The Windows "24-key correspondence" variant of Sun-arae also allows
-    doubling the *second* half of a diphthong instead: `ㄱ ㅗ ㅐ ㅐ ㄱ`
-    (g, o, ae, ae, g) tenses the same way. Implemented for every
-    diphthong that has no dedicated key of its own — ㅘㅙㅚㅝㅞㅟㅒㅖㅢ —
-    since a buffered value like `WAE` can only ever have come from a
-    two-keystroke combine, so doubling either half is unambiguous.
-    **Not** implemented for `ㅐ`/`ㅔ` specifically: those two *do* have a
-    dedicated key, so a buffered `ㅐ` might be a single keystroke or the
-    result of `ㅏ+ㅣ` — there's no way to tell which, and treating every
-    lone `ㅐ` followed by `ㅣ` as a tense-choseong signal would misfire
-    on ordinary text (typing 개 then a separate ㅣ). See
-    `hangul_ic_sunarae_is_second_half()` in the patch and
-    `tests/test_matrix.c`'s "24-key correspondence" section for the
-    full reasoning and the regression tests that pin this down.
+- 뜻(ㄸ+ㅡ+ㅅ) = 키 입력 `ㄷ ㅡ ㅡ ㅅ` (d, eu, eu, s): `ㅡ`를 중복 입력해 `ㄷ`→`ㄸ`로 된소리화하고, 이후 `ㅅ`이 받침이 됩니다.
+- 꽥(ㄲ+ㅗㅐ+ㄱ) = 키 입력 `ㄱ ㅗ ㅗ ㅐ ㄱ` (g, o, o, ae, g): 이중모음 ㅗㅐ의 *첫 번째* 모음을 중복 입력해 `ㄱ`→`ㄲ`로 된소리화하며, 이후 ㅗ+ㅐ=ㅙ는 그대로 정상 조합됩니다.
+  - Windows용 "24키 대응" 변형에서는 이중모음의 *두 번째* 절반을 중복 입력하는 방식도 허용합니다: `ㄱ ㅗ ㅐ ㅐ ㄱ` (g, o, ae, ae, g)도 동일하게 된소리화됩니다. 이는 전용 키가 따로 없는 모든 이중모음(ㅘㅙㅚㅝㅞㅟㅒㅖㅢ)에 대해 구현되어 있습니다. `WAE` 같은 버퍼 값은 항상 두 번의 키 입력 조합 결과일 수밖에 없으므로, 둘 중 어느 절반을 중복 입력해도 모호함이 없기 때문입니다. **단** `ㅐ`/`ㅔ`에는 이 방식을 적용하지 않습니다. 이 둘은 전용 키가 있어서, 버퍼에 담긴 `ㅐ`가 단일 키 입력인지 `ㅏ+ㅣ` 조합 결과인지 구분할 방법이 없고, `ㅐ` 다음의 모든 `ㅣ`를 된소리 신호로 처리하면 일반 텍스트 입력(개를 입력한 뒤 별개의 ㅣ를 입력하는 경우 등)에서 오작동합니다. 자세한 내용과 이를 고정하는 회귀 테스트는 패치의 `hangul_ic_sunarae_is_second_half()`와 `tests/test_matrix.c`의 "24-key correspondence" 절을 참고하세요.
 
-### 2.2 — ㅒ/ㅖ/ㅙ/ㅞ without Shift
+### 2.2: Shift 없는 ㅒ/ㅖ/ㅙ/ㅞ
 
-`ㅑ+ㅣ` composes to `ㅒ`, and `ㅕ+ㅣ` composes to `ㅖ` — the same way
-`ㅗ+ㅏ` already composes to `ㅘ` in standard dubeolsik. No Shift key
-involved. The page states this rule covers two more pairs the same
-way: `ㅘ+ㅣ`→`ㅙ` and `ㅝ+ㅣ`→`ㅞ` (i.e. finish typing the diphthong,
-then press `ㅣ` to extend it).
+`ㅑ+ㅣ`는 `ㅒ`로, `ㅕ+ㅣ`는 `ㅖ`로 조합됩니다. 표준 두벌식에서 `ㅗ+ㅏ`가 이미 `ㅘ`로 조합되는 것과 같은 방식이며, Shift가 필요 없습니다. 같은 방식으로 `ㅘ+ㅣ`→`ㅙ`, `ㅝ+ㅣ`→`ㅞ` 두 조합도 추가로 지원합니다(이중모음을 다 입력한 뒤 `ㅣ`를 눌러 확장).
 
-- 옛 (ㅇ+ㅖ+ㅅ) = keys `ㅇ ㅕ ㅣ ㅅ` (ieung, yeo, i, s).
-- 왜 (ㅇ+ㅙ) = keys `ㅇ ㅗ ㅏ ㅣ` (ieung, o, a, i) — forms `ㅘ`, then `ㅣ`
-  extends it to `ㅙ`. (The direct `ㅇ ㅗ ㅐ` spelling using the
-  dedicated `ㅐ` key still works too, as always.)
+- 옛(ㅇ+ㅖ+ㅅ) = 키 입력 `ㅇ ㅕ ㅣ ㅅ` (이응, yeo, i, s).
+- 왜(ㅇ+ㅙ) = 키 입력 `ㅇ ㅗ ㅏ ㅣ` (이응, o, a, i): `ㅘ`를 만든 뒤 `ㅣ`로 확장해 `ㅙ`가 됩니다. (전용 `ㅐ` 키를 이용한 `ㅇ ㅗ ㅐ` 방식도 그대로 동작합니다.)
 
-The page separately describes a Windows-only "24-key correspondence"
-variant that drops the dedicated `ㅐ`/`ㅔ` keys entirely, replacing them
-with `ㅏ+ㅣ`→`ㅐ` and `ㅓ+ㅣ`→`ㅔ`. This implementation doesn't do the
-full 24-key remap (the `ㅐ`/`ㅔ` keys still exist and still work), but
-adds those two combinations anyway as harmless extras on top — pressing
-`ㅏ` then `ㅣ` gives `ㅐ` in addition to the dedicated key still working.
+원본 페이지는 별도로 전용 `ㅐ`/`ㅔ` 키를 아예 없애고 `ㅏ+ㅣ`→`ㅐ`, `ㅓ+ㅣ`→`ㅔ`로 대체하는 Windows 전용 "24키 대응" 변형도 설명합니다. 이 구현은 24키 완전 재배치는 하지 않지만(전용 `ㅐ`/`ㅔ` 키는 그대로 존재하고 그대로 동작), 두 조합을 무해한 추가 기능으로 함께 지원합니다. `ㅏ` 다음 `ㅣ`를 입력하면 전용 키와 별개로 `ㅐ`도 만들어집니다.
 
-### 2.3 — Tense batchim via a doubled batchim key
+### 2.3: 받침 키 중복 입력으로 된소리 받침
 
-Pressing the same consonant key twice while it's acting as a batchim
-(final consonant, not a new initial) tenses it, for the two batchim
-that have a tense form (ㄲ, ㅆ).
+받침(새 초성이 아니라 종성)으로 쓰이는 자음 키를 두 번 누르면, 된소리 형태가 있는 두 받침(ㄲ, ㅆ)에 한해 된소리 받침이 됩니다.
 
-- 걲 (거 + ㄲ batchim) = keys `ㄱ ㅓ ㄱ ㄱ` (g, eo, g, g).
+- 걲(거 + ㄲ 받침) = 키 입력 `ㄱ ㅓ ㄱ ㄱ` (g, eo, g, g).
 
-### 2.4 — Fully compatible with the existing Shift-based input
+### 2.4: 기존 Shift 기반 입력과 완전히 호환
 
-Nothing above *removes* the old Shift keys for ㄲㄸㅃㅆㅉ/ㅒㅖ — it just
-adds a second way to type them. The two methods can even be mixed in
-the same syllable.
+위 규칙들은 ㄲㄸㅃㅆㅉ/ㅒㅖ에 대한 기존 Shift 키를 없애는 것이 아니라, 입력하는 방법을 하나 더 추가할 뿐입니다. 두 방법은 같은 음절 안에서도 섞어 쓸 수 있습니다.
 
-- 꺾 (ㄲ+ㅓ+ㄲ) can be typed as:
-  - `ㄲ ㅓ ㄲ` — fully Shift-based (standard dubeolsik)
-  - `ㄲ ㅓ ㄱ ㄱ` — Shift for the initial, doubling for the batchim
-  - `ㄱ ㅓ ㅓ ㄲ` — doubling for the initial, Shift for the batchim
-  - `ㄱ ㅓ ㅓ ㄱ ㄱ` — fully Shift-free (both rules 2.1 and 2.3)
+- 꺾(ㄲ+ㅓ+ㄲ)은 다음과 같이 입력할 수 있습니다.
+  - `ㄲ ㅓ ㄲ`: 완전히 Shift 기반(표준 두벌식)
+  - `ㄲ ㅓ ㄱ ㄱ`: 초성은 Shift, 받침은 중복 입력
+  - `ㄱ ㅓ ㅓ ㄲ`: 초성은 중복 입력, 받침은 Shift
+  - `ㄱ ㅓ ㅓ ㄱ ㄱ`: 완전히 Shift 없이(규칙 2.1과 2.3 모두 사용)
 
-## How this maps onto libhangul's automaton
+## libhangul 오토마톤과의 대응 관계
 
-libhangul already has almost everything needed as *existing, unused-by
-default* machinery:
+libhangul에는 이미 필요한 대부분의 기능이 *존재하지만 기본적으로 쓰이지 않는* 형태로 갖춰져 있습니다.
 
-- `hangul_combination_table_default` (the table the standard "2"
-  keyboard already uses) already contains choseong+choseong→ssang and
-  jongseong+jongseong→ssang pairs (e.g. ㄱ+ㄱ→ㄲ at both choseong and
-  jongseong level). They're just never reached in practice: the
-  wrapper `hangul_ic_combine()` explicitly refuses to combine two
-  *identical* jamo unless `option_combi_on_double_stroke` is turned on
-  — and even then, that's the wrong mechanism for rule 2.1, which
-  tenses a *different* jamo (the preceding choseong) than the one
-  being doubled (the following jungseong).
-- What's missing is rule 2.1's mechanism specifically: retyping the
-  *choseong* in response to a *repeated jungseong* keystroke. That
-  needs a new lookup table (keyed on a single jamo, not a pair) and a
-  few lines checking "did the caller just press the same key as the
-  one on top of the stack".
-- Rule 2.2 just needs more rows in the jungseong combination table —
-  pure data, no new logic. Shipped with `YA+I=YAE` and `YEO+I=YE`
-  initially; `WA+I=WAE`, `WEO+I=WE`, `A+I=AE`, and `EO+I=E` were added
-  after walking through every example on the spec page and testing
-  live (see `docs/TESTING.md`) turned up the gap — the 3beol reference
-  implementation this was ported from didn't have them either.
-- Rule 2.3 needs jongseong+jongseong doubling to actually fire, i.e.
-  the new automaton must call the raw table lookup
-  (`hangul_keyboard_combine`) directly instead of going through the
-  option-gated `hangul_ic_combine()` wrapper — but only for *this*
-  keyboard, so every other keyboard keeps requiring
-  `option_combi_on_double_stroke` (default off) as before.
+- `hangul_combination_table_default`(표준 "2" 키보드가 이미 사용하는 테이블)에는 초성+초성→된소리, 종성+종성→된소리 조합(예: 초성/종성 단계 모두에서 ㄱ+ㄱ→ㄲ)이 이미 들어 있습니다. 다만 실제로는 도달되지 않습니다. 래퍼 함수 `hangul_ic_combine()`이 `option_combi_on_double_stroke` 옵션이 켜져 있지 않은 한 동일한 자모 두 개의 조합을 명시적으로 거부하기 때문입니다. 그리고 그 옵션이 켜져 있더라도 규칙 2.1에는 맞지 않는 메커니즘입니다. 규칙 2.1은 중복 입력된 자모(뒤따르는 중성)가 아니라 그 앞의 초성을 된소리로 바꾸기 때문입니다.
+- 없는 것은 규칙 2.1의 메커니즘, 즉 반복된 중성 입력에 반응해 *초성*을 재입력하는 기능뿐입니다. 이를 위해 새 조회 테이블(자모 쌍이 아니라 단일 자모를 키로 사용)과 "방금 입력된 키가 스택 맨 위와 같은가"를 확인하는 몇 줄의 코드가 필요합니다.
+- 규칙 2.2는 중성 조합 테이블에 행을 추가하기만 하면 됩니다. 새 로직 없이 순수하게 데이터만 추가하면 됩니다. 처음에는 `YA+I=YAE`, `YEO+I=YE`만 추가했고, 스펙 페이지의 모든 예시를 직접 검증하는 과정에서(`docs/TESTING.md` 참고) `WA+I=WAE`, `WEO+I=WE`, `A+I=AE`, `EO+I=E`가 빠져 있음을 발견해 추가했습니다. 이 프로젝트가 참고한 3beol 구현에도 이 조합들은 없었습니다.
+- 규칙 2.3은 종성+종성 중복 입력이 실제로 동작하게 해야 합니다. 즉 새 오토마톤은 옵션으로 게이트된 `hangul_ic_combine()` 래퍼를 거치지 않고 원시 테이블 조회 함수(`hangul_keyboard_combine`)를 직접 호출해야 합니다. 단, *이 키보드에 한해서만* 그렇게 동작하며, 다른 모든 키보드는 이전과 동일하게 `option_combi_on_double_stroke`(기본값 꺼짐)를 필요로 합니다.
 
-See `patches/0001-add-dubeolsik-sunarae-keyboard.patch` for the actual
-diff, and `docs/RESEARCH.md` for how this was found (an existing,
-tested implementation in a libhangul fork, ported onto current
-upstream rather than copied wholesale).
+실제 diff는 `patches/0001-add-dubeolsik-sunarae-keyboard.patch`를 참고하세요.
