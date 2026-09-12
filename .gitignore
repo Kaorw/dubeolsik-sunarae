@@ -1,0 +1,12 @@
+# makepkg build artifacts
+packaging/src/
+packaging/pkg/
+packaging/*.pkg.tar.*
+packaging/*.log
+
+# scratch test binaries (never build these into /tmp - see docs/TESTING.md)
+/test_sunarae
+/test_hangul
+
+# makepkg VCS source cache (bare clone kept next to PKGBUILD)
+packaging/libhangul/

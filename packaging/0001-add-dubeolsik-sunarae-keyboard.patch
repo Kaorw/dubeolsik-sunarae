@@ -1,0 +1,332 @@
+diff --git i/hangul/hangul.h w/hangul/hangul.h
+index 8ffb7a1..cfb9519 100644
+--- i/hangul/hangul.h
++++ w/hangul/hangul.h
+@@ -87,6 +87,11 @@ enum {
+     HANGUL_KEYBOARD_TYPE_ROMAJA,
+     HANGUL_KEYBOARD_TYPE_JAMO_YET,
+     HANGUL_KEYBOARD_TYPE_JASO_YET,
++    /* Dubeolsik Sun-arae (두벌식 순아래): same key table as
++     * HANGUL_KEYBOARD_TYPE_JAMO, but with an extra "double keystroke"
++     * combination rule so tense consonants and ㅒ/ㅖ don't need Shift.
++     * See docs/ALGORITHM.md in the dubeolsik-sunarae project. */
++    HANGUL_KEYBOARD_TYPE_JAMO_SUNARAE,
+ };
+ 
+ enum {
+diff --git i/hangul/hangulinputcontext.c w/hangul/hangulinputcontext.c
+index 9a94bce..394cd14 100644
+--- i/hangul/hangulinputcontext.c
++++ w/hangul/hangulinputcontext.c
+@@ -748,6 +748,182 @@ flush:
+     return false;
+ }
+ 
++/* dubeolsik-sunarae project: 두벌식 순아래 (Dubeolsik Sun-arae).
++ *
++ * This is hangul_ic_process_jamo() with one addition: while a choseong and
++ * jungseong are already buffered (no jongseong yet) and the incoming key is
++ * the SAME jungseong jamo that was just pushed (ch == hangul_ic_peek(hic)),
++ * we first try to "replace" the buffered choseong with its tense (ssang)
++ * form via the keyboard's galmadeuli/replace table (combination slot 2)
++ * instead of treating the repeated key as a second jungseong. This is what
++ * lets 까/따/빠/싸/짜 and diphthongs like 꽥/뜻 be typed without Shift.
++ * See docs/ALGORITHM.md rule 2.1 for the full explanation and worked
++ * examples (뜻, 꽥, 옛, 걲, 꺾).
++ *
++ * If the choseong doesn't have a tense form (or there is no choseong to
++ * tense), this falls through to the exact same jungseong-combination logic
++ * as hangul_ic_process_jamo(), so ordinary diphthongs (ㅘ, ㅙ, ㅚ, ...)
++ * still work unchanged. Only keyboards that set combination slot 2 reach
++ * this function at all (see the HANGUL_KEYBOARD_TYPE_JAMO_SUNARAE case in
++ * hangul_ic_process()), so every other keyboard's behavior is untouched. */
++static bool
++hangul_ic_process_jamo_sunarae(HangulInputContext *hic, ucschar ch)
++{
++    ucschar jong;
++    ucschar combined;
++
++    if (!hangul_is_jamo(ch) && ch > 0) {
++	hangul_ic_save_commit_string(hic);
++	hangul_ic_append_commit_string(hic, ch);
++	return true;
++    }
++
++    if (hic->buffer.jongseong) {
++	if (hangul_is_choseong(ch)) {
++	    jong = hangul_ic_choseong_to_jongseong(hic, ch);
++	    combined = hangul_keyboard_combine(hic->keyboard, 0,
++					       hic->buffer.jongseong, jong);
++	    if (hangul_is_jongseong(combined)) {
++		if (!hangul_ic_push(hic, combined)) {
++		    if (!hangul_ic_push(hic, ch)) {
++			return false;
++		    }
++		}
++	    } else {
++		hangul_ic_save_commit_string(hic);
++		if (!hangul_ic_push(hic, ch)) {
++		    return false;
++		}
++	    }
++	} else if (hangul_is_jungseong(ch)) {
++	    ucschar pop, peek;
++	    pop = hangul_ic_pop(hic);
++	    peek = hangul_ic_peek(hic);
++
++	    if (hangul_is_jongseong(peek)) {
++		ucschar choseong = hangul_jongseong_get_diff(peek,
++						 hic->buffer.jongseong);
++		if (choseong == 0) {
++		    hangul_ic_save_commit_string(hic);
++		    if (!hangul_ic_push(hic, ch)) {
++			return false;
++		    }
++		} else {
++		    hic->buffer.jongseong = peek;
++		    hangul_ic_save_commit_string(hic);
++		    hangul_ic_push(hic, choseong);
++		    if (!hangul_ic_push(hic, ch)) {
++			return false;
++		    }
++		}
++	    } else {
++		hic->buffer.jongseong = 0;
++		hangul_ic_save_commit_string(hic);
++		hangul_ic_push(hic, hangul_jongseong_to_choseong(pop));
++		if (!hangul_ic_push(hic, ch)) {
++		    return false;
++		}
++	    }
++	} else {
++	    goto sunarae_flush;
++	}
++    } else if (hic->buffer.jungseong) {
++	if (hangul_is_choseong(ch)) {
++	    if (hic->buffer.choseong) {
++		jong = hangul_ic_choseong_to_jongseong(hic, ch);
++		if (hangul_is_jongseong(jong)) {
++		    if (!hangul_ic_push(hic, jong)) {
++			if (!hangul_ic_push(hic, ch)) {
++			    return false;
++			}
++		    }
++		} else {
++		    hangul_ic_save_commit_string(hic);
++		    if (!hangul_ic_push(hic, ch)) {
++			return false;
++		    }
++		}
++	    } else {
++		if (hic->option_auto_reorder) {
++		    if (!hangul_ic_push(hic, ch)) {
++			if (!hangul_ic_push(hic, ch)) {
++			    return false;
++			}
++		    }
++		} else {
++		    hangul_ic_save_commit_string(hic);
++		    if (!hangul_ic_push(hic, ch)) {
++			return false;
++		    }
++		}
++	    }
++	} else if (hangul_is_jungseong(ch)) {
++	    ucschar tensed = 0;
++
++	    /* Sun-arae rule 2.1: same jungseong key twice tenses the
++	     * buffered choseong instead of combining as a jungseong. */
++	    if (hic->buffer.choseong && ch == hangul_ic_peek(hic)) {
++		tensed = hangul_keyboard_combine(hic->keyboard, 2,
++						 0, hic->buffer.choseong);
++	    }
++
++	    if (tensed) {
++		if (!hangul_ic_push(hic, tensed)) {
++		    return false;
++		}
++	    } else {
++		combined = hangul_keyboard_combine(hic->keyboard, 0,
++						   hic->buffer.jungseong, ch);
++		if (hangul_is_jungseong(combined)) {
++		    if (!hangul_ic_push(hic, combined)) {
++			return false;
++		    }
++		} else {
++		    hangul_ic_save_commit_string(hic);
++		    if (!hangul_ic_push(hic, ch)) {
++			return false;
++		    }
++		}
++	    }
++	} else {
++	    goto sunarae_flush;
++	}
++    } else if (hic->buffer.choseong) {
++	if (hangul_is_choseong(ch)) {
++	    combined = hangul_ic_combine(hic, hic->buffer.choseong, ch);
++	    if (hangul_is_jongseong(combined)) {
++		hic->buffer.choseong = 0;
++		ucschar pop = hangul_ic_pop(hic);
++		ucschar jong2 = hangul_choseong_to_jongseong(pop);
++		hangul_ic_push(hic, jong2);
++	    }
++
++	    if (!hangul_ic_push(hic, combined)) {
++		if (!hangul_ic_push(hic, ch)) {
++		    return false;
++		}
++	    }
++	} else {
++	    if (!hangul_ic_push(hic, ch)) {
++		if (!hangul_ic_push(hic, ch)) {
++		    return false;
++		}
++	    }
++	}
++    } else {
++	if (!hangul_ic_push(hic, ch)) {
++	    return false;
++	}
++    }
++
++    hangul_ic_save_preedit_string(hic);
++    return true;
++
++sunarae_flush:
++    hangul_ic_flush_internal(hic);
++    return false;
++}
++
+ static bool
+ hangul_ic_process_jaso(HangulInputContext *hic, ucschar ch)
+ {
+@@ -1099,6 +1275,8 @@ hangul_ic_process(HangulInputContext *hic, int ascii)
+ 	return hangul_ic_process_jaso(hic, c);
+     case HANGUL_KEYBOARD_TYPE_ROMAJA:
+ 	return hangul_ic_process_romaja(hic, ascii, c);
++    case HANGUL_KEYBOARD_TYPE_JAMO_SUNARAE:
++	return hangul_ic_process_jamo_sunarae(hic, c);
+     default:
+ 	return hangul_ic_process_jamo(hic, c);
+     }
+diff --git i/hangul/hangulkeyboard.c w/hangul/hangulkeyboard.c
+index 4e2c277..5c5d0df 100644
+--- i/hangul/hangulkeyboard.c
++++ w/hangul/hangulkeyboard.c
+@@ -139,6 +139,34 @@ static const HangulKeyboard hangul_keyboard_2 = {
+     true
+ };
+ 
++static const HangulCombination hangul_combination_2sunarae = {
++    countof(hangul_combination_table_2sunarae),
++    countof(hangul_combination_table_2sunarae),
++    (HangulCombinationItem*)hangul_combination_table_2sunarae,
++    true
++};
++
++static const HangulCombination hangul_replace_2sunarae = {
++    countof(hangul_replace_table_2sunarae),
++    countof(hangul_replace_table_2sunarae),
++    (HangulCombinationItem*)hangul_replace_table_2sunarae,
++    true
++};
++
++/* dubeolsik-sunarae project: 두벌식 순아래. Same physical key table as
++ * "2" (Dubeolsik); see docs/ALGORITHM.md for the input rules this adds. */
++static const HangulKeyboard hangul_keyboard_2sunarae = {
++    (char*)"2sunarae",
++    (char*)N_("Dubeolsik Sun-arae"),
++    { (ucschar*)hangul_keyboard_table_2, NULL, NULL, NULL },
++    { (HangulCombination*)&hangul_combination_2sunarae,
++      NULL,
++      (HangulCombination*)&hangul_replace_2sunarae,
++      NULL },
++    HANGUL_KEYBOARD_TYPE_JAMO_SUNARAE,
++    true
++};
++
+ static const HangulKeyboard hangul_keyboard_2y = {
+     (char*)"2y",
+     (char*)N_("Dubeolsik Yetgeul"),
+@@ -213,6 +241,7 @@ static const HangulKeyboard hangul_keyboard_ahn = {
+ 
+ static const HangulKeyboard* hangul_builtin_keyboards[] = {
+     &hangul_keyboard_2,
++    &hangul_keyboard_2sunarae,
+     &hangul_keyboard_2y,
+     &hangul_keyboard_390,
+     &hangul_keyboard_3final,
+diff --git i/hangul/hangulkeyboard.h w/hangul/hangulkeyboard.h
+index 1d3953c..ab5f8ac 100644
+--- i/hangul/hangulkeyboard.h
++++ w/hangul/hangulkeyboard.h
+@@ -1718,3 +1718,68 @@ static const HangulCombinationItem hangul_combination_table_ahn[] = {
+   { 0x11c211bd, 0x11be }, /* jongseong hieuh        + cieuc  = chieuch       */
+   { 0x11ce11c2, 0x11b4 }, /* jongseong rieul-tikeut + hieuh  = rieul-thieuth */
+ };
++
++/* ---------------------------------------------------------------------
++ * Dubeolsik Sun-arae (두벌식 순아래)
++ *
++ * Added for the dubeolsik-sunarae project (see docs/ALGORITHM.md for the
++ * full rationale). This keyboard reuses the standard "2" (dubeolsik) key
++ * table unchanged; only the combination logic differs.
++ * ------------------------------------------------------------------- */
++
++/* Same as hangul_combination_table_default, plus two jungseong entries
++ * that let ㅑㅣ/ㅕㅣ compose into ㅒ/ㅖ without Shift, per the sun-arae
++ * spec (rule 2.2 in docs/ALGORITHM.md). */
++static const HangulCombinationItem hangul_combination_table_2sunarae[] = {
++  { 0x11001100, 0x1101 }, /* choseong  kiyeok + kiyeok  = ssangkiyeok   */
++  { 0x11001109, 0x11aa }, /* choseong  kiyeok + sios    = kiyeok-sios(jong) */
++  { 0x1102110c, 0x11ac }, /* choseong  nieun  + cieuc   = nieun-cieuc(jong) */
++  { 0x11021112, 0x11ad }, /* choseong  nieun  + hieuh   = nieun-hieuh(jong) */
++  { 0x11031103, 0x1104 }, /* choseong  tikeut + tikeut  = ssangtikeut   */
++  { 0x11051100, 0x11b0 }, /* choseong  rieul  + kiyeok  = rieul-kiyeok(jong) */
++  { 0x11051106, 0x11b1 }, /* choseong  rieul  + mieum   = rieul-mieum(jong) */
++  { 0x11051107, 0x11b2 }, /* choseong  rieul  + pieup   = rieul-pieup(jong) */
++  { 0x11051109, 0x11b3 }, /* choseong  rieul  + sios    = rieul-sios(jong) */
++  { 0x11051110, 0x11b4 }, /* choseong  rieul  + thieuth = rieul-thieuth(jong) */
++  { 0x11051111, 0x11b5 }, /* choseong  rieul  + phieuph = rieul-phieuph(jong) */
++  { 0x11051112, 0x11b6 }, /* choseong  rieul  + hieuh   = rieul-hieuh(jong) */
++  { 0x11071107, 0x1108 }, /* choseong  pieup  + pieup   = ssangpieup    */
++  { 0x11071109, 0x11b9 }, /* choseong  pieup  + sios    = pieup-sios(jong) */
++  { 0x11091109, 0x110a }, /* choseong  sios   + sios    = ssangsios     */
++  { 0x110c110c, 0x110d }, /* choseong  cieuc  + cieuc   = ssangcieuc    */
++  { 0x11631175, 0x1164 }, /* jungseong ya     + i       = yae  (sun-arae) */
++  { 0x11671175, 0x1168 }, /* jungseong yeo    + i       = ye   (sun-arae) */
++  { 0x11691161, 0x116a }, /* jungseong o      + a       = wa            */
++  { 0x11691162, 0x116b }, /* jungseong o      + ae      = wae           */
++  { 0x11691175, 0x116c }, /* jungseong o      + i       = oe            */
++  { 0x116e1165, 0x116f }, /* jungseong u      + eo      = weo           */
++  { 0x116e1166, 0x1170 }, /* jungseong u      + e       = we            */
++  { 0x116e1175, 0x1171 }, /* jungseong u      + i       = wi            */
++  { 0x11731175, 0x1174 }, /* jungseong eu     + i       = yi            */
++  { 0x11a811a8, 0x11a9 }, /* jongseong kiyeok + kiyeok  = ssangekiyeok  */
++  { 0x11a811ba, 0x11aa }, /* jongseong kiyeok + sios    = kiyeok-sois   */
++  { 0x11ab11bd, 0x11ac }, /* jongseong nieun  + cieuc   = nieun-cieuc   */
++  { 0x11ab11c2, 0x11ad }, /* jongseong nieun  + hieuh   = nieun-hieuh   */
++  { 0x11af11a8, 0x11b0 }, /* jongseong rieul  + kiyeok  = rieul-kiyeok  */
++  { 0x11af11b7, 0x11b1 }, /* jongseong rieul  + mieum   = rieul-mieum  */
++  { 0x11af11b8, 0x11b2 }, /* jongseong rieul  + pieup   = rieul-pieup  */
++  { 0x11af11ba, 0x11b3 }, /* jongseong rieul  + sios    = rieul-sios   */
++  { 0x11af11c0, 0x11b4 }, /* jongseong rieul  + thieuth = rieul-thieuth */
++  { 0x11af11c1, 0x11b5 }, /* jongseong rieul  + phieuph = rieul-phieuph */
++  { 0x11af11c2, 0x11b6 }, /* jongseong rieul  + hieuh   = rieul-hieuh  */
++  { 0x11b811ba, 0x11b9 }, /* jongseong pieup  + sios    = pieup-sios   */
++  { 0x11ba11ba, 0x11bb }, /* jongseong sios   + sios    = ssangsios    */
++};
++
++/* "Galmadeuli" (갈마들이 / replace) table: pressing the same jungseong key
++ * twice right after a tensable choseong retypes that choseong as its
++ * tense (ssang) form instead of composing a jungseong. Key is encoded as
++ * make_key(0, choseong) since this replaces on a single jamo, not a pair.
++ * See docs/ALGORITHM.md rule 2.1. */
++static const HangulCombinationItem hangul_replace_table_2sunarae[] = {
++  { 0x1100, 0x1101 },  /* choseong giyeok -> ssanggiyeok (ㄱ -> ㄲ) */
++  { 0x1103, 0x1104 },  /* choseong tikeut -> ssangtikeut (ㄷ -> ㄸ) */
++  { 0x1107, 0x1108 },  /* choseong pieup  -> ssangpieup  (ㅂ -> ㅃ) */
++  { 0x1109, 0x110a },  /* choseong sios   -> ssangsios   (ㅅ -> ㅆ) */
++  { 0x110c, 0x110d },  /* choseong cieuc  -> ssangcieuc  (ㅈ -> ㅉ) */
++};

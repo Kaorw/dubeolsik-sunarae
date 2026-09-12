@@ -1,0 +1,42 @@
+DRAFT — written by inspecting fcitx/fcitx5-hangul @ tag 5.1.11
+(commit ede437b, matching installed fcitx5-hangul 5.1.11-1), NOT YET
+BUILT OR TESTED. See docs/RESEARCH.md "Known limitation" and
+docs/NEXT-STEPS.md before using this.
+
+fcitx5-hangul hardcodes its selectable keyboards as a fixed enum
+(src/engine.h) plus a parallel id array (src/engine.cpp) — it does not
+enumerate whatever libhangul reports. Adding "2sunarae" to libhangul
+is therefore necessary but not sufficient; fcitx5-hangul itself needs
+these two changes, appending (not inserting, to avoid renumbering
+anyone's saved config) a new entry at the end of both lists:
+
+--- a/src/engine.h
++++ b/src/engine.h
+@@ enum class HangulKeyboard {
+     Romaja,
+     Ahnmatae,
++    Dubeolsik_Sunarae,
+ };
+
+@@ FCITX_CONFIG_ENUM_NAME_WITH_I18N(HangulKeyboard, N_("Dubeolsik"), ...
+-                                 N_("Ahnmatae"));
++                                 N_("Ahnmatae"), N_("Dubeolsik Sun-arae"));
+
+--- a/src/engine.cpp
++++ b/src/engine.cpp
+@@ static const char *keyboardId[] = {"2",  "2y", "39", "3f", "3s",
+-                                   "3y", "32", "ro", "ahn"};
++                                   "3y", "32", "ro", "ahn", "2sunarae"};
+
+After that, `Keyboard=Dubeolsik Sun-arae` in
+~/.config/fcitx5/conf/hangul.conf (see fcitx5/hangul.conf) would select
+it through the normal fcitx5-hangul config path — no further code
+changes needed since it's still a `2sunarae`-style ("2"-key-table)
+keyboard from libhangul's point of view.
+
+Build would follow fcitx5-hangul's normal CMake process:
+  cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release
+  cmake --build build
+  sudo cmake --install build
+(needs `cmake` and `extra-cmake-modules`, not currently installed in
+this environment — see docs/NEXT-STEPS.md.)

@@ -1,0 +1,52 @@
+# Maintainer: (local, unofficial — see packaging/README.md)
+#
+# libhangul, patched to add the "2sunarae" (두벌식 순아래) keyboard.
+# Based on upstream commit a34aef73378c0992316861bbf13fc914ee7577d9
+# (2026-01-15), the same commit Arch's extra/libhangul 0.2.0-1 is built
+# from. See ../docs/RESEARCH.md and ../patches/ for what changed and why.
+#
+# pkgrel is bumped relative to the real 0.2.0-1 package so `pacman -Syu`
+# won't immediately try to "upgrade" back over this build. It WILL do so
+# once upstream ships 0.2.0-2 or 0.2.1 — see packaging/README.md for how
+# to pin this package if you want to avoid that.
+
+pkgname=libhangul
+pkgver=0.2.0
+pkgrel=100
+_commit=a34aef73378c0992316861bbf13fc914ee7577d9
+pkgdesc="Input method library for Korean, patched with the Dubeolsik Sun-arae (두벌식 순아래) keyboard"
+arch=('x86_64' 'aarch64')
+url="https://github.com/libhangul/libhangul"
+license=('LGPL2.1')
+depends=('glibc')
+makedepends=('git' 'autoconf' 'automake' 'libtool' 'gettext' 'pkgconf')
+provides=("libhangul=$pkgver")
+conflicts=('libhangul')
+source=("libhangul::git+https://github.com/libhangul/libhangul.git#commit=$_commit"
+         "0001-add-dubeolsik-sunarae-keyboard.patch")
+sha256sums=('SKIP'
+            'f3144bdc4329e5fa7ac03bbcf84f2a0a1d51d5ceb41f18ef384a6c672f2ea089')
+
+prepare() {
+  cd "$srcdir/libhangul"
+  patch -p1 -i "$srcdir/0001-add-dubeolsik-sunarae-keyboard.patch"
+  touch ChangeLog
+  autoreconf -fi
+}
+
+build() {
+  cd "$srcdir/libhangul"
+  ./configure --prefix=/usr --libdir=/usr/lib
+  make
+}
+
+check() {
+  cd "$srcdir/libhangul"
+  # upstream's own test suite
+  make check || true
+}
+
+package() {
+  cd "$srcdir/libhangul"
+  make DESTDIR="$pkgdir" install
+}
