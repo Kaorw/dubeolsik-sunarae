@@ -1,12 +1,12 @@
-# Maintainer: (local, unofficial — see packaging/README.md)
+# Maintainer: Kaorw <kaorw@kaorw.net> (unofficial — see packaging/README.md)
 #
 # fcitx5-hangul, patched to expose the "2sunarae" (두벌식 순아래)
 # keyboard added by this project's patched libhangul as a selectable
 # "Keyboard" option. Based on upstream tag 5.1.11 (commit
 # ede437b2d38bcc37abf382d9136f3ccbf8e16c08), the same commit Arch's
-# extra/fcitx5-hangul 5.1.11-1 is built from. See ../docs/RESEARCH.md
-# and ../docs/NEXT-STEPS.md for why this patch is needed in addition
-# to the libhangul one, and ../patches/ for what changed.
+# extra/fcitx5-hangul 5.1.11-1 is built from. See "구현 방식" in
+# ../../README.md for why this patch is needed in addition to the
+# libhangul one, and ../../patches/ for what changed.
 #
 # Requires the patched libhangul from ./PKGBUILD to already be
 # installed (for the "2sunarae" keyboard to exist at all); builds fine
@@ -29,6 +29,7 @@ license=('LGPL-2.1-or-later' 'GPL-2.0-or-later')
 depends=('fcitx5' 'libhangul')
 makedepends=('git' 'cmake' 'extra-cmake-modules' 'gettext')
 provides=("fcitx5-hangul=$pkgver")
+options=('!debug')
 conflicts=('fcitx5-hangul')
 source=("fcitx5-hangul::git+https://github.com/fcitx/fcitx5-hangul.git#commit=$_commit"
          "0002-fcitx5-hangul-add-sunarae-option.patch")

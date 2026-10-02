@@ -1,9 +1,9 @@
-# Maintainer: (local, unofficial — see packaging/README.md)
+# Maintainer: Kaorw <kaorw@kaorw.net> (unofficial — see packaging/README.md)
 #
 # libhangul, patched to add the "2sunarae" (두벌식 순아래) keyboard.
 # Based on upstream commit a34aef73378c0992316861bbf13fc914ee7577d9
 # (2026-01-15), the same commit Arch's extra/libhangul 0.2.0-1 is built
-# from. See ../docs/RESEARCH.md and ../patches/ for what changed and why.
+# from. See ../../docs/ALGORITHM.md and ../../patches/ for what changed and why.
 #
 # pkgrel is bumped relative to the real 0.2.0-1 package so `pacman -Syu`
 # won't immediately try to "upgrade" back over this build. It WILL do so
@@ -21,6 +21,7 @@ license=('LGPL2.1')
 depends=('glibc')
 makedepends=('git' 'autoconf' 'automake' 'libtool' 'gettext' 'pkgconf')
 provides=("libhangul=$pkgver")
+options=('!debug')
 conflicts=('libhangul')
 source=("libhangul::git+https://github.com/libhangul/libhangul.git#commit=$_commit"
          "0001-add-dubeolsik-sunarae-keyboard.patch")

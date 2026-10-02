@@ -2,11 +2,27 @@
 
 두벌식 순아래(Dubeolsik Sun-arae)는 표준 두벌식(2벌식) 한글 자판에서 Shift 없이도 입력할 수 있도록 만든 변형 자판입니다. 
 
-이 자판을 **Omarchy**에서 **Fcitx5**(`fcitx5-hangul` + `libhangul`)로 사용할 수 있도록 패키징한 프로젝트입니다. 해당 환경 이외에서는 테스트해보지 못했습니다.
+이 자판을 리눅스의 **Fcitx5**(`fcitx5-hangul` + `libhangul`)에서 쓸 수 있도록 두 라이브러리에 패치를 더하고 Arch 패키지로 묶은 프로젝트입니다. Omarchy(Arch + Hyprland)에서 만들고 시험했으며, 다른 환경에서는 시험해 보지 못했습니다.
 
 물리적 키 배열은 표준 두벌식과 완전히 동일합니다. 달라지는 것은 오직 반복 입력을 해석하는 방식뿐이며, 이 덕분에 된소리 자음(ㄲㄸㅃㅆㅉ)과 ㅒ/ㅖ를 Shift 없이 입력할 수 있습니다. 
 
 전체 규칙과 예시는 [`docs/ALGORITHM.md`](docs/ALGORITHM.md)를 참고하세요.
+
+## 빠른 설치 (Arch Linux 계열)
+
+```sh
+git clone https://github.com/Kaorw/dubeolsik-sunarae
+cd dubeolsik-sunarae
+(cd packaging/libhangul && makepkg -si)      # 순아래가 들어간 libhangul
+(cd packaging/fcitx5-hangul && makepkg -si)  # 순아래를 고를 수 있는 fcitx5-hangul
+scripts/enable-fcitx5.sh                     # 한글 자판을 순아래로 설정
+```
+
+- 두 패키지는 Arch 공식 `libhangul`, `fcitx5-hangul`을 같은 이름으로 대신합니다. 다른 패키지는 그대로 동작합니다.
+- `enable-fcitx5.sh`는 `~/.config/fcitx5/conf/hangul.conf`의 `Keyboard` 줄만 바꿉니다. 입력기 목록에 한글이 없으면 함께 더하고, 돌고 있는 Fcitx5를 안전하게 다시 띄웁니다. 고치기 전 파일은 `*.bak-sunarae`로 남깁니다. `--remove`를 주면 표준 두벌식으로 되돌립니다.
+- `pacman -Syu`가 나중에 공식 패키지로 덮어쓰지 않게 하는 방법과 되돌리는 방법은 [`packaging/README.md`](packaging/README.md)에 있습니다.
+
+다른 배포판에서는 `patches/`의 두 패치를 그 배포판의 `libhangul`·`fcitx5-hangul` 패키지에 적용해 다시 빌드하면 됩니다. 패치는 각각 libhangul [`a34aef7`](https://github.com/libhangul/libhangul/commit/a34aef73378c0992316861bbf13fc914ee7577d9), fcitx5-hangul 5.1.11 기준입니다.
 
 ## 출처와 감사
 
@@ -41,7 +57,8 @@ vendor/libhangul         패치가 적용된 libhangul 소스 트리 (그대로 
 vendor/fcitx5-hangul     패치가 적용된 fcitx5-hangul 소스 트리 (동일)
 packaging/libhangul      패치된 libhangul을 빌드·설치하는 Arch PKGBUILD
 packaging/fcitx5-hangul  패치된 fcitx5-hangul을 빌드·설치하는 Arch PKGBUILD
-fcitx5/                  새 자판을 선택하는 fcitx5-hangul 설정 스니펫
+scripts/enable-fcitx5.sh 순아래를 고르고 fcitx5 를 다시 띄우는 설정 스크립트
+fcitx5/                  바뀌는 fcitx5-hangul 설정을 보여 주는 참고용 스니펫
 tests/                   libhangul의 HangulInputContext API를 직접 검증하는 C 테스트 하네스
 ```
 
@@ -53,8 +70,11 @@ tests/                   libhangul의 HangulInputContext API를 직접 검증하
 
 ## 빌드
 
+설치하지 않고 소스 트리에서 빌드만 해 보려면:
+
 ```sh
 cd vendor/libhangul
+touch ChangeLog       # automake 가 요구하는 파일 (생성 파일이라 저장소에는 없음)
 autoreconf -fi        # 최초 1회 또는 patches/ 변경 후에만 필요
 ./configure --prefix=/usr --libdir=/usr/lib
 make -j$(nproc)
@@ -63,14 +83,21 @@ make -j$(nproc)
 시스템에 영향을 주지 않고 오토마톤만 확인하려면:
 
 ```sh
-gcc tests/test_sunarae.c -Ivendor/libhangul/hangul -o /tmp/test_sunarae \
+mkdir -p tests/out
+gcc tests/test_sunarae.c -Ivendor/libhangul/hangul -o tests/out/test_sunarae \
     -Lvendor/libhangul/hangul/.libs -lhangul
-LD_LIBRARY_PATH=vendor/libhangul/hangul/.libs /tmp/test_sunarae
+LD_LIBRARY_PATH=vendor/libhangul/hangul/.libs tests/out/test_sunarae
 ```
 
-## 설치
+`/tmp` 아래에서 빌드하거나 실행하지 마세요. 그러면 시스템 `libhangul`을 대신 불러와 잘못된 결과가 나올 수 있습니다([`docs/TESTING.md`](docs/TESTING.md) 레벨 2).
 
-시스템 패키지 두 개를 교체하는 작업이므로, 단순 `make`/`cmake --install`(pacman이 추적할 수 없고, 이후 `pacman -Syu`가 조용히 되돌려버릴 수 있음) 대신 정식 pacman 패키지로 패키징했습니다. 전체 빌드/설치/업그레이드 고정 방법은 [`packaging/README.md`](packaging/README.md)를, 실제로 입력기를 순아래로 전환하는 설정 변경은 [`fcitx5/hangul.conf`](fcitx5/hangul.conf)를 참고하세요.
+## 설치 방식
+
+시스템 패키지 두 개를 교체하는 작업이므로, 단순 `make`/`cmake --install`(pacman이 추적할 수 없고, 이후 `pacman -Syu`가 조용히 되돌려버릴 수 있음) 대신 정식 pacman 패키지로 패키징했습니다. 각 PKGBUILD는 업스트림 저장소의 고정된 커밋을 받아 `patches/`와 같은 패치를 적용합니다. 전체 빌드/설치/업그레이드 고정 방법은 [`packaging/README.md`](packaging/README.md)를 참고하세요.
+
+## 업스트림
+
+이 자판을 요청하는 업스트림 이슈가 이미 열려 있고, 두 패치 모두 독립적인 PR로 제출할 수 있도록 작성되어 있습니다. 진행 상황과 계획은 [`docs/UPSTREAM.md`](docs/UPSTREAM.md)를 참고하세요.
 
 ## 한계점
 

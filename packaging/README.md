@@ -5,14 +5,18 @@
 - `libhangul/`: `2sunarae` 키보드 추가.
 - `fcitx5-hangul/`: "Dubeolsik Sun-arae"를 선택 가능한 `Keyboard` 옵션으로 추가 (선택하려면 위 패치된 `libhangul`이 필요하며, stock `libhangul`에 대해서도 빌드는 되지만 선택할 옵션이 아직 없음).
 
-두 패키지 모두 설치되어 사용 중입니다. 검증 내용은 [`../docs/TESTING.md`](../docs/TESTING.md)를 참고하세요.
+두 PKGBUILD는 업스트림 저장소의 고정된 커밋을 받아 이 디렉터리의 패치(`../patches/`와 같은 파일)를 적용하므로, 저장소만 clone하면 따로 준비할 것이 없습니다. 검증 내용은 [`../docs/TESTING.md`](../docs/TESTING.md)를 참고하세요.
 
 ## 빌드
 
+저장소 최상위에서:
+
 ```sh
-cd packaging/libhangul && makepkg -si
-cd ../fcitx5-hangul && makepkg -si
+(cd packaging/libhangul && makepkg -si)
+(cd packaging/fcitx5-hangul && makepkg -si)
 ```
+
+`fcitx5-hangul`은 `libhangul`보다 나중에 빌드하세요. 빌드할 때 함께 도는 테스트가 설치된 순아래 libhangul을 씁니다.
 
 `-s`는 빌드 의존성을 pacman으로 설치하고, `-i`는 빌드 결과를 바로 설치합니다. `-i` 없이 빌드했다면 다음과 같이 수동 설치하세요.
 
@@ -24,10 +28,12 @@ sudo pacman -U packaging/fcitx5-hangul/fcitx5-hangul-5.1.11-100-x86_64.pkg.tar.z
 ## 자판 선택
 
 ```sh
-cp fcitx5/hangul.conf ~/.config/fcitx5/conf/hangul.conf
+scripts/enable-fcitx5.sh
 ```
 
-이후 fcitx5를 재시작해 설정을 다시 읽도록 합니다. Omarchy 환경에서는 `systemctl --user restart omarchy-fcitx5.service`를 사용하세요. 단순히 `fcitx5 -r &`을 실행하면 systemd가 관리하는 인스턴스와 D-Bus 이름을 두고 경합해 오히려 상황이 꼬일 수 있습니다(자세한 디버깅 내용은 `docs/TESTING.md` 참고). 확실하지 않다면 먼저 `pkill -9 fcitx5`로 정리한 뒤 systemd(또는 Omarchy가 관리하는 방식)가 새로 띄우도록 하세요.
+`~/.config/fcitx5/conf/hangul.conf`의 `Keyboard` 줄만 `"Dubeolsik Sun-arae"`로 바꾸고, 입력기 목록에 한글이 없으면 더합니다. Fcitx5는 끝날 때 설정을 덮어쓰므로, 돌고 있는 Fcitx5를 먼저 멈추고 고친 뒤 다시 띄웁니다. systemd 사용자 서비스(Omarchy의 `omarchy-fcitx5.service` 등)로 돌고 있으면 그 서비스를 다시 시작하고, 아니면 같은 인자로 다시 실행합니다. 바뀌는 값은 [`../fcitx5/hangul.conf`](../fcitx5/hangul.conf)에서 볼 수 있습니다.
+
+손으로 고칠 때는 `fcitx5 -r &`를 쓰지 마세요. systemd가 관리하는 인스턴스와 D-Bus 이름을 두고 경합해 오히려 상황이 꼬일 수 있습니다(자세한 내용은 `docs/LIMITATIONS.md`). 서비스를 다시 시작하거나, 확실하지 않다면 `pkill -9 fcitx5`로 정리한 뒤 서비스가 새로 띄우도록 하세요.
 
 **`libhangul` 패키지를 재설치할 때마다**(예: 패치를 업데이트해 다시 빌드한 경우) 같은 방법으로 fcitx5를 재시작해야 합니다. 실행 중인 프로세스는 `pacman -U`가 디스크의 파일을 교체해도 예전 공유 라이브러리를 메모리에 그대로 유지하고 있어서, 재시작 전까지는 변경 사항이 조용히 반영되지 않습니다. 자세한 내용은 `docs/TESTING.md`의 레벨 7 참고.
 
@@ -50,4 +56,4 @@ IgnorePkg = libhangul fcitx5-hangul
 sudo pacman -S libhangul fcitx5-hangul   # 실제 extra/ 패키지로 재설치
 ```
 
-(`IgnorePkg` 줄을 추가했다면 먼저 제거하고, `~/.config/fcitx5/conf/hangul.conf`의 `Keyboard=` 줄을 `Dubeolsik`으로 되돌리거나 삭제하세요.)
+`IgnorePkg` 줄을 추가했다면 먼저 지우세요. 공식 패키지로 되돌리기 전에 `scripts/enable-fcitx5.sh --remove`로 자판을 표준 두벌식으로 돌려 두세요. 공식 `fcitx5-hangul`은 `"Dubeolsik Sun-arae"` 값을 모릅니다.
